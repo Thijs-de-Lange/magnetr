@@ -15,5 +15,7 @@ Suggests:
 Config/testthat/edition: 3
 Imports: 
     magrittr,
-    dplyr
-Remotes: git::git@github.com/USDA-ERS/MTED-HARr.git
+    dplyr,
+    HARr
+Remotes: 
+    github::USDA-ERS/MTED-HARr@HEAD
