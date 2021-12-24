@@ -16,6 +16,7 @@ Config/testthat/edition: 3
 Imports: 
     magrittr,
     dplyr,
-    HARr
+    HARr,
+    tidyr
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
