@@ -1,7 +1,7 @@
 #' @importFrom magrittr %>%
 
 #' @export
-extract_MAGNET_d1 <- function(scenarios, periods, indicators, filetype, filepath, fileformat) {
+extract_MAGNET_d1 <- function(scenarios, periods, indicators, region_select, filetype, filepath, fileformat) {
   d1_scenarios_all <- NULL
   for (k in 1:length(scenarios)) {
     d1_periods_all <- NULL
@@ -18,7 +18,7 @@ extract_MAGNET_d1 <- function(scenarios, periods, indicators, filetype, filepath
           d1_indicators <- d1 %>%
             data.frame() %>%
             dplyr::rename("value" = ".") %>%
-            dplyr::mutate(region = row.names(.data)) %>%
+            dplyr::mutate(region = row.names(.)) %>%
             dplyr::mutate(indicator = indicators[m]) %>%
             dplyr::mutate(scenario = scenarios[k]) %>%
             dplyr::mutate(year = as.numeric(substr(periods[l], 6, 9)))
@@ -126,14 +126,15 @@ extract_MAGNET_d1 <- function(scenarios, periods, indicators, filetype, filepath
       }
       d1_periods_all <- rbind(d1_periods_all, d1_indicators_all)
     }
-    d1_scenarios_all <- rbind(d1_scenarios_all, d1_periods_all)
+    d1_scenarios_all <- rbind(d1_scenarios_all, d1_periods_all) %>%
+      dplyr::filter(region %in% region_select)
   }
   print(d1_scenarios_all)
 }
 
 
 #' @export
-extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
+extract_MAGNET_base <- function(scenarios, indicators, region_select, base_year, filetype, filepath) { #add year
   d1_scenarios_all <- NULL
   for (k in 1:length(scenarios)) {
       d1a <- HARr::read_har(file.path(filepath,paste0("BaseData_b_",filetype,".har")))
@@ -148,10 +149,10 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
           d1_indicators <- d1 %>%
             data.frame() %>%
             dplyr::rename("value" = ".") %>%
-            dplyr::mutate(region = row.names(.data)) %>%
+            dplyr::mutate(region = row.names(.)) %>%
             dplyr::mutate(indicator = indicators[m]) %>%
             dplyr::mutate(scenario = scenarios[k]) %>%
-            dplyr::mutate(year = "2014")
+            dplyr::mutate(year = base_year) #variable maken!!
 
 
           d1_indicators_all <- rbind(d1_indicators_all, d1_indicators)
@@ -167,7 +168,7 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
             dplyr::rename(region = paste0("",names_col2,"")) %>%
             dplyr::mutate(indicator = indicators[m]) %>%
             dplyr::mutate(scenario = scenarios[k]) %>%
-            mutate(year = "2014") %>%
+            mutate(year = base_year) %>%
             dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
 
           d1_indicators_all <- rbind(d1_indicators_all, d1_indicators)
@@ -190,7 +191,7 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
                 dplyr::mutate(indicator = indicators[m]) %>%
                 dplyr::mutate(region = regions[n]) %>%
                 dplyr::mutate(scenario = scenarios[k]) %>%
-                dplyr::mutate(year = "2014") %>%
+                dplyr::mutate(year = base_year) %>%
                 dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
 
 
@@ -211,7 +212,7 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
                 dplyr::mutate(indicator = indicators[m]) %>%
                 dplyr::mutate(region = regions[n]) %>%
                 dplyr::mutate(scenario = scenarios[k]) %>%
-                dplyr::mutate(year = "2014") %>%
+                dplyr::mutate(year = base_year) %>%
                 dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
 
               d1_regions_all <- rbind(d1_regions_all, d1_regions)
@@ -242,7 +243,7 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
                 dplyr::mutate(region = regions[n]) %>%
                 dplyr::mutate(commodity = variables[o]) %>%
                 dplyr::mutate(scenario = scenarios[k]) %>%
-                dplyr::mutate(year = "2014") %>%
+                dplyr::mutate(year = base_year) %>%
                 dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
 
               d1_variables_all <- rbind(d1_variables_all, d1_variables)
@@ -254,7 +255,8 @@ extract_MAGNET_base <- function(scenarios, indicators, filetype, filepath) {
 
 
     }
-    d1_scenarios_all <- rbind(d1_scenarios_all, d1_indicators_all)
+    d1_scenarios_all <- rbind(d1_scenarios_all, d1_indicators_all) %>%
+      dplyr::filter(region %in% region_select)
   }
   print(d1_scenarios_all)
 }
