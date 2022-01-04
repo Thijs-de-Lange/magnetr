@@ -2,4 +2,5 @@
 
 export(extract_MAGNET_base)
 export(extract_MAGNET_d1)
+export(magnet_indicator)
 importFrom(magrittr,"%>%")

@@ -262,3 +262,68 @@ extract_MAGNET_base <- function(scenarios, indicators, region_select, base_year,
 }
 
 
+
+#' @export
+magnet_indicator <- function(indicator, scenarios, periods, base_year, region_select, filepath_base, filepath_scenario){
+
+
+  if(indicator == "population" | indicator == "gdp_pc") {
+    population <- rbind(extract_MAGNET_base(scenarios, "POP", region_select, base_year, "all", filepath_base),
+                 extract_MAGNET_d1(scenarios, periods, "POP", region_select, "Update", filepath_scenario, "har"))
+
+    if(indicator == "population") {
+      print(population) }
+
+  } else if (indicator == "labour") {
+    labour <- rbind(extract_MAGNET_base(scenarios, "QLAB", region_select, base_year, "all", filepath_base),
+                 extract_MAGNET_d1(scenarios, periods, "QLAB", region_select, "Update", filepath_scenario, "har"))
+
+    print(labour)
+
+  } else if (indicator == "nutrient_cons_pc") {
+    nutrient_cons_pc <- rbind(extract_MAGNET_base(scenarios, "NSPC", region_select, base_year, "all", filepath_base),
+                    extract_MAGNET_d1(scenarios, periods, "NSPC", region_select, "update_view", filepath_scenario, "har"))
+
+    print(nutrient_cons_pc)
+
+  } else if (indicator == "gdp" | indicator == "gdp_pc") {
+    gdp_base <- extract_MAGNET_base(scenarios, "AG02", region_select, base_year, "all", filepath_base) %>%
+      dplyr::rename(commodity1 = region,
+             region = commodity) %>%
+      dplyr::rename(commodity = commodity1) %>%
+      dplyr::group_by(region, indicator, scenario, year) %>%
+      dplyr::summarize(across(c(value),
+                       sum,
+                       na.rm = TRUE),
+                .groups = "drop"
+      ) %>%
+      rename(value_base = value)
+
+    qgdp <- extract_MAGNET_d1(scenarios, periods, "qgdp", region_select, "Solution", filepath_scenario, "sol") %>%
+      dplyr::rename(q = value) %>%
+      dplyr::select(-indicator) %>%
+      dplyr::mutate(year = as.character(year))
+
+    gdp <- dplyr::left_join(gdp_base %>%
+                       select(-year)
+                     , qgdp) %>%
+      rbind(., gdp_base %>%
+              mutate(q = 0)
+      ) %>%
+      dplyr::group_by(indicator, region, scenario) %>%
+      dplyr::arrange(year) %>%
+      dplyr::mutate(percent_cumulative = cumprod(1 + (q/100))) %>%
+      dplyr::mutate(value = value_base * percent_cumulative) %>%
+      dplyr::ungroup()
+
+#add code to derive gdp_pc
+    gdp_pc <- "has to be added"
+
+    if(indicator == "gdp") {
+      print(gdp)
+    } else if(indicator == "gdp_pc"){
+        print(gdp_pc)
+      }
+  }
+}
+
