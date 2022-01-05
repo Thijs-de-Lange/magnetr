@@ -1,5 +1,5 @@
 Package: magnetr
-Title: What the Package Does (One Line, Title Case)
+Title: An R package to load results from the MAGNET model in R
 Version: 0.0.0.9000
 Authors@R: 
     person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
@@ -17,6 +17,7 @@ Imports:
     magrittr,
     dplyr,
     HARr,
-    tidyr
+    tidyr,
+    utils
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
