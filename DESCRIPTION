@@ -1,9 +1,11 @@
 Package: magnetr
-Title: An R package to load results from the MAGNET model in R
+Title: Load results from the global computable general equilibrium model 'MAGNET'
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+    person("Thijs", "de Lange", 
+    email = "thijs.delange@wur.nl", 
+    role = c("aut", "cre")
+    )
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -11,6 +13,8 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
@@ -21,3 +25,6 @@ Imports:
     utils
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
+VignetteBuilder: knitr
+URL: https://github.com/Thijs-de-Lange/magnetr
+BugReports: https://github.com/Thijs-de-Lange/magnetr/issues
