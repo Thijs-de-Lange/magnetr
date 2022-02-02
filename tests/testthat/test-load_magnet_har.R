@@ -38,7 +38,7 @@ test_that("wrong country/region warning 2", {
 })
 
 
-
+####default functie voor datapath toevoegen!!!!
 
 #test wrong indicator warning 1
 test_that("wrong indicator warning", {
@@ -79,4 +79,20 @@ test_that("wrong indicator warning 2", {
                "indicator name(s) are incorrect", fixed = TRUE)
 })
 
+indicator <- "endow_market_price"
+country <- c("Eth")
+scenario <-c("Base_PCSL_ProdPath")
+period <- c("2014-2020", "2020-2025")
+base_year = "2014"
+
+
+raw_path <- "W:/WECR/Magnet_data9/PCSL/4_MAGNET"
+dataBasePath <- file.path(raw_path,'Basedata')
+dataUpdatesPath <- file.path(raw_path,'Updates')
+
+path_solutions <- file.path(raw_path,'Solutions')
+
+qpm <- magnet_scenario_support("TF", country, scenario, period, path_solutions, "Solution", "sol")
+
+price_cons_good_agent_price <- magnet_indicator("price_cons_good_agent_price", country, scenario, period, base_year, raw_path)
 

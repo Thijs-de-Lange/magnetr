@@ -3,4 +3,5 @@
 export(magnet_base)
 export(magnet_indicator)
 export(magnet_scenario)
+export(magnet_scenario_support)
 importFrom(magrittr,"%>%")
