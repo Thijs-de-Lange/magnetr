@@ -91,8 +91,17 @@ dataBasePath <- file.path(raw_path,'Basedata')
 dataUpdatesPath <- file.path(raw_path,'Updates')
 
 path_solutions <- file.path(raw_path,'Solutions')
+path_basedata <- file.path(raw_path,'Basedata')
+qpm <- magnet_scenario_support("TF", scenario, period, path_solutions, "Solution", "sol")
 
-qpm <- magnet_scenario_support("TF", country, scenario, period, path_solutions, "Solution", "sol")
+price_cons_good_agent_price <- magnet_indicator("price_cons_good_agent_price", scenario, period, base_year, raw_path)
 
-price_cons_good_agent_price <- magnet_indicator("price_cons_good_agent_price", country, scenario, period, base_year, raw_path)
+endow_market_price <- magnet_indicator("endow_market_price",  scenario, period, base_year, raw_path)
 
+gdp <- magnet_indicator("gdp",  scenario, period, base_year, raw_path)
+
+vdpm_base <- magnet_base_support("VDPM", scenario, base_year,  path_basedata, "all")
+qpd <- magnet_scenario_support("qpd", scenarios, periods, path_solutions, "Solution", "sol")
+
+
+qo <- magnet_scenario_support("QO", scenario, period, path_solutions, "Solution", "sol")
