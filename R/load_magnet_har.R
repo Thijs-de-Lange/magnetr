@@ -349,9 +349,9 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
   } else if (indicator == "gdp") {
     gdp_base <- magnet_base_support("AG02", scenarios, base_year,  path_basedata, "_view") %>%
-      dplyr::rename(commodity1 = region,
-             region = commodity) %>%
-      dplyr::rename(commodity = commodity1) %>%
+   #   dplyr::rename(commodity1 = region,
+   #          region = commodity) %>%
+   #   dplyr::rename(commodity = commodity1) %>%
       dplyr::group_by(region, indicator, scenario, year) %>%
       dplyr::summarize(dplyr::across(c(value),
                        sum,
