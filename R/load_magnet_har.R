@@ -344,11 +344,11 @@ if(all(indicator %in% magnet_indicators) == FALSE){
                  magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har"))
 
   } else if (indicator == "nutrient_cons_pc") {
-    output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, "all"),
+    output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, ""),
                     magnet_scenario_support("NSPC", scenarios, periods, path_update, "update_view", "har"))
 
   } else if (indicator == "gdp") {
-    gdp_base <- magnet_base_support("AG02", scenarios, base_year,  path_basedata, "all") %>%
+    gdp_base <- magnet_base_support("AG02", scenarios, base_year,  path_basedata, "_view") %>%
       dplyr::rename(commodity1 = region,
              region = commodity) %>%
       dplyr::rename(commodity = commodity1) %>%
