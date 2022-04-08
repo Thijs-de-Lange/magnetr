@@ -8,7 +8,6 @@
 \usage{
 magnet_scenario(
   indicators,
-  regions,
   scenarios,
   periods,
   file_path,
@@ -19,8 +18,6 @@ magnet_scenario(
 \arguments{
 \item{indicators}{The indicator name quotation marks or a vector of the indicator names, indicator name(s) need to correspond with the Header names in the .har file}
 
-\item{regions}{The region name quotation marks or a vector of the region names, region name(s) corresponds with abbreviations used in magnet}
-
 \item{scenarios}{The scenario name in quotation marks or a vector of scenario names}
 
 \item{periods}{The period name in quotation marks or a vector of the period names}
@@ -30,6 +27,8 @@ magnet_scenario(
 \item{file_type}{This corresponds with from where the results are extracted, like from a .har or .sol file with the name "Update", "Solution" or "update_view"}
 
 \item{file_suffix}{The suffix of the data file e.g. har or sol}
+
+\item{regions}{The region name quotation marks or a vector of the region names, region name(s) corresponds with abbreviations used in magnet}
 }
 \description{
 Load magnet results in long format in R

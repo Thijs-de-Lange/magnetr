@@ -4,15 +4,7 @@
 \alias{magnet_indicator}
 \title{Load specific indicators from MAGNET in long format in R}
 \usage{
-magnet_indicator(
-  indicator,
-  regions,
-  scenarios,
-  periods,
-  base_year,
-  file_path_base,
-  file_path_scenario
-)
+magnet_indicator(indicator, scenarios, periods, base_year, path_project)
 }
 \description{
 Load specific indicators from MAGNET in long format in R

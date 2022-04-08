@@ -4,7 +4,7 @@
 \alias{magnet_base}
 \title{Load magnet base year data in long format in R}
 \usage{
-magnet_base(indicators, regions, scenarios, base_year, file_path, file_type)
+magnet_base(indicators, scenarios, base_year, file_path, file_type)
 }
 \description{
 Load magnet base year data in long format in R

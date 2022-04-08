@@ -334,13 +334,13 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   } else {
 
   if(indicator == "population") {
-    output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, "all"),
+    output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, "_b"),
                  magnet_scenario_support("POP", scenarios, periods, path_update, "Update", "har"))
 
 
 
   } else if (indicator == "labour") {
-    output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, "all"),
+    output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, "_b"),
                  magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har"))
 
   } else if (indicator == "nutrient_cons_pc") {
