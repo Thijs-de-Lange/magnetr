@@ -137,7 +137,7 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
 magnet_base_support <- function(indicators, scenarios, base_year, file_path, file_type) { #add year
   d1_scenarios_all <- NULL
   for (k in 1:length(scenarios)) {
-    d1a <- HARr::read_har(file.path(file_path,paste0("BaseData_b_",file_type,".har")))
+    d1a <- HARr::read_har(file.path(file_path,paste0("BaseData_b",file_type,".har")))
 
     d1_indicators_all <- NULL
     for (m in 1:length(indicators)) {
@@ -334,13 +334,13 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   } else {
 
   if(indicator == "population") {
-    output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, "_b"),
+    output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, ""),
                  magnet_scenario_support("POP", scenarios, periods, path_update, "Update", "har"))
 
 
 
   } else if (indicator == "labour") {
-    output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, "_b"),
+    output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
                  magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har"))
 
   } else if (indicator == "nutrient_cons_pc") {
