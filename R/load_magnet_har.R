@@ -4,7 +4,17 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
   for (k in 1:length(scenarios)) {
     d1_periods_all <- NULL
     for (l in 1:length(periods)) {
+
+      if(file_suffix != "sol") {
       d1a <- HARr::read_har(file.path(file_path,paste0("",scenarios[k],"_",periods[l],"_",file_type,".",file_suffix,"")))
+    } else if(file_suffix == "sol") { # stupid fix for error in read_har, only happening in v6 version .sol file it seems
+        system(paste("har2gdx",file.path(file_path,paste0("",scenarios[k],"_",periods[l],"_",file_type,".",file_suffix,"")), "./tmp.gdx"))
+        system("gdx2har ./tmp.gdx ./tmp.har")
+        d1a <- HARr::read_har("./tmp.har")
+        file.remove("./tmp.har")
+        file.remove("./tmp.gdx")
+      }
+
 
       if (all(indicators %in% names(d1a)) == FALSE){
         stop("indicator name(s) are incorrect") } else {
