@@ -105,3 +105,27 @@ qpd <- magnet_scenario_support("qpd", scenarios, periods, path_solutions, "Solut
 
 
 qo <- magnet_scenario_support("QO", scenario, period, path_solutions, "Solution", "sol")
+
+
+#####
+
+magnet_path <- "W:/WECR/Magnet_data4/Thijs/Dhaka_uganda_5lab/4_MAGNET"
+dataBasePath <- file.path(magnet_path,'Basedata')
+dataUpdatesPath <- file.path(magnet_path,'Updates')
+dataSolutionPath <- file.path(magnet_path,'Solutions')
+
+country <- c("PAK")
+scenario <-c("BaseGDPExo_msx_SSP2_5lab_labshock")
+period <- c("2014-2018", "2018-2020", "2020-2025", "2025-2030","2035-2040", "2040-2045", "2045-2050")
+base_year <- "2014"
+
+
+gross_wage <- magnet_indicator("gross_wage", scenario, period, base_year, magnet_path)
+
+pop <- magnet_indicator("pop", scenario, period, base_year, magnet_path)
+
+gdp <- magnet_indicator("gdp", scenario, period, base_year, magnet_path)
+
+nutrient_cons_pc <- magnet_indicator("nutrient_cons_pc", scenario, period, base_year, magnet_path)
+
+price_cons_good_market_price <- magnet_indicator("price_cons_good_market_price", scenario, period, base_year, magnet_path)

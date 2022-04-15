@@ -7,6 +7,7 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
 
       if(file_suffix != "sol") {
       d1a <- HARr::read_har(file.path(file_path,paste0("",scenarios[k],"_",periods[l],"_",file_type,".",file_suffix,"")))
+
     } else if(file_suffix == "sol") { # stupid fix for error in read_har, only happening in v6 version .sol file it seems
         system(paste("har2gdx",file.path(file_path,paste0("",scenarios[k],"_",periods[l],"_",file_type,".",file_suffix,"")), "./tmp.gdx"))
         system("gdx2har ./tmp.gdx ./tmp.har")
@@ -323,7 +324,7 @@ magnet_base <- function(indicators, scenarios, base_year, file_path, file_type) 
 }
 
 
-magnet_indicators = c("population", "labour", "nutrient_cons_pc", "gdp", "endow_market_price", "price_cons_good_agent_price")
+magnet_indicators = c("pop", "qlab", "gross_wage", "net_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
 
 
 
@@ -343,18 +344,47 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   stop("typo in indicator: function support the indicators 'population', 'labour', 'nutrient_cons_pc' 'gdp' and 'endow_market_price'")
   } else {
 
-  if(indicator == "population") {
+  if(indicator == "pop") {
     output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, ""),
                  magnet_scenario_support("POP", scenarios, periods, path_update, "Update", "har"))
 
 
 
-  } else if (indicator == "labour") {
+  } else if (indicator == "qlab") {
     output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
                  magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har"))
 
+    } else if (indicator == "gross_wage") {
+    qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har")) %>%
+      dplyr::select(-indicator, - variable_name) %>%
+      dplyr::rename(qlab = value)
+
+    evfb <- rbind(magnet_base_support("EVFB", scenarios, base_year, path_basedata, ""),
+                  magnet_scenario_support("EVFB", scenarios, periods, path_update, "Update", "har")) %>%
+      dplyr::select(-indicator, - variable_name) %>%
+      dplyr::rename(evfb = value)
+
+    output <- dplyr::left_join(qlab, evfb) %>%
+      dplyr::mutate(value = ifelse(qlab == 0, 0, evfb/qlab))
+
+    } else if (indicator == "net_wage") {
+      qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "Update", "har")) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::rename(qlab = value)
+
+      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "Update", "har")) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::rename(evos = value)
+
+      output <- dplyr::left_join(qlab, evos) %>%
+        dplyr::mutate(value = ifelse(qlab == 0, 0, evos/qlab))
+
+
   } else if (indicator == "nutrient_cons_pc") {
-    output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, ""),
+    output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, "_view"),
                     magnet_scenario_support("NSPC", scenarios, periods, path_update, "update_view", "har"))
 
   } else if (indicator == "gdp") {
@@ -370,7 +400,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       ) %>%
       dplyr::rename(value_base = value)
 
-    qgdp <- magnet_scenario_support("qgdp", scenarios, periods, path_solutions, "Solution", "sol") %>%
+    qgdp <- magnet_scenario_support("QGDP", scenarios, periods, path_solutions, "Solution", "sol") %>%
       dplyr::rename(q = value) %>%
       dplyr::select(-indicator) %>%
       dplyr::mutate(year = as.character(year))
@@ -386,6 +416,78 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       dplyr::mutate(percent_cumulative = cumprod(1 + (q/100))) %>%
       dplyr::mutate(value = value_base * percent_cumulative) %>%
       dplyr::ungroup()
+
+    } else if (indicator == "price_cons_good_market_price") {
+      vdpb_value <- rbind(magnet_base_support("VDPB", scenarios, base_year, path_basedata, ""),
+                          magnet_scenario_support("VDPB", scenarios, periods, path_update, "Update", "har")) %>%
+        dplyr::rename(vdpb_value = value) %>%
+        dplyr::select(-variable_name, -indicator)
+
+      vmpb_value <- rbind(magnet_base_support("VMPB", scenarios, base_year, path_basedata, ""),
+                          magnet_scenario_support("VMPB",scenarios, periods, path_update, "Update", "har")) %>%
+        dplyr::rename(vmpb_value = value) %>%
+        dplyr::select(-variable_name, -indicator)
+
+      vpb_value <- dplyr::left_join(vdpb_value, vmpb_value) %>%
+        dplyr::mutate(vpb_value = vdpb_value + vmpb_value)
+
+      vdpb_base <- magnet_base_support("VDPB", scenarios, base_year,  path_basedata, "") %>%
+        dplyr::rename(value_base = value) %>%
+        dplyr::select(-indicator, - variable_name)
+
+
+      vmpb_base <- magnet_base_support("VMPB", scenarios, base_year,  path_basedata, "") %>%
+        dplyr::rename(value_base = value) %>%
+        dplyr::select(-indicator, - variable_name)
+
+
+
+      qpd <- magnet_scenario_support("QPD",  scenarios, periods, path_solutions, "Solution", "sol") %>%
+        dplyr::rename(qpd = value) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::mutate(year = as.character(year))
+
+
+      qpm <- magnet_scenario_support("QPM", scenarios, periods, path_solutions, "Solution", "sol") %>%
+        dplyr::rename(qpm = value) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::mutate(year = as.character(year))
+
+
+      vdpb_volume <- dplyr::left_join(vdpb_base %>%
+                                        dplyr::select(-year),
+                                      qpd) %>%
+        rbind(., vdpb_base %>%
+                dplyr::mutate(qpd = 0)
+        ) %>%
+        dplyr::group_by(region, scenario, commodity) %>%
+        dplyr::arrange(year) %>%
+        dplyr::mutate(percent_cumulative = cumprod(1 + (qpd/100))) %>%
+        dplyr::mutate(vdpb_volume = value_base * percent_cumulative) %>%
+        dplyr::ungroup() %>%
+        dplyr::rename(percent_cumulative_vdpb = percent_cumulative) %>%
+        dplyr::select(-value_base)
+
+
+      vmpb_volume <- dplyr::left_join(vmpb_base %>%
+                                        dplyr::select(-year),
+                                      qpm) %>%
+        rbind(., vmpb_base %>%
+                dplyr::mutate(qpm = 0)
+        ) %>%
+        dplyr::group_by(region, scenario, commodity) %>%
+        dplyr::arrange(year) %>%
+        dplyr::mutate(percent_cumulative = cumprod(1 + (qpm/100))) %>%
+        dplyr::mutate(vmpb_volume = value_base * percent_cumulative) %>%
+        dplyr::ungroup() %>%
+        dplyr::rename(percent_cumulative_vmpb = percent_cumulative) %>%
+        dplyr::select(-value_base)
+
+      vpb_volume <- dplyr::left_join(vdpb_volume, vmpb_volume) %>%
+        dplyr::mutate(vpb_volume = vdpb_volume + vmpb_volume)
+
+      output <- dplyr::left_join(vpb_value, vpb_volume) %>%
+        dplyr::mutate(price_cons_good_market_price = vpb_value / vpb_volume)
   } else if (indicator == "endow_market_price") {
     vfm_value <- rbind(magnet_base_support("VFM", scenarios, base_year, path_basedata, ""),
                       magnet_scenario_support("VFM", scenarios, periods, path_update, "Update", "har")) %>%
@@ -448,13 +550,13 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
 
 
-    qpd <- magnet_scenario_support("qpd",  scenarios, periods, path_solutions, "Solution", "sol") %>%
+    qpd <- magnet_scenario_support("QPD",  scenarios, periods, path_solutions, "Solution", "sol") %>%
       dplyr::rename(qpd = value) %>%
       dplyr::select(-indicator, - variable_name) %>%
       dplyr::mutate(year = as.character(year))
 
 
-    qpm <- magnet_scenario_support("qpm", scenarios, periods, path_solutions, "Solution", "sol") %>%
+    qpm <- magnet_scenario_support("QPM", scenarios, periods, path_solutions, "Solution", "sol") %>%
       dplyr::rename(qpm = value) %>%
       dplyr::select(-indicator, - variable_name) %>%
       dplyr::mutate(year = as.character(year))
