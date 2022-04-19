@@ -116,7 +116,7 @@ dataSolutionPath <- file.path(magnet_path,'Solutions')
 
 country <- c("PAK")
 scenario <-c("BaseGDPExo_msx_SSP2_5lab_labshock")
-period <- c("2014-2018", "2018-2020", "2020-2025", "2025-2030","2035-2040", "2040-2045", "2045-2050")
+period <- c("2014-2018")#, "2018-2020", "2020-2025", "2025-2030","2035-2040", "2040-2045", "2045-2050")
 base_year <- "2014"
 
 
@@ -129,3 +129,33 @@ gdp <- magnet_indicator("gdp", scenario, period, base_year, magnet_path)
 nutrient_cons_pc <- magnet_indicator("nutrient_cons_pc", scenario, period, base_year, magnet_path)
 
 price_cons_good_market_price <- magnet_indicator("price_cons_good_market_price", scenario, period, base_year, magnet_path)
+
+
+gdp_base <- magnet_base_support("AG02", scenario, base_year,  dataBasePath, "_view") %>%
+  dplyr::rename(commodity1 = region,
+                region = commodity) %>%
+  dplyr::rename(commodity = commodity1) %>%
+  dplyr::group_by(region, indicator, scenario, year) %>%
+  dplyr::summarize(dplyr::across(c(value),
+                                 sum,
+                                 na.rm = TRUE),
+                   .groups = "drop"
+  ) %>%
+  dplyr::rename(value_base = value)
+
+qgdp <- magnet_scenario_support("QGDP", scenario, period, dataSolutionPath, "Solution", "sol") %>%
+  dplyr::rename(q = value) %>%
+  dplyr::select(-indicator) %>%
+  dplyr::mutate(year = as.character(year))
+
+output <- dplyr::left_join(gdp_base %>%
+                             dplyr::select(-year)
+                           , qgdp) %>%
+  rbind(., gdp_base %>%
+          dplyr::mutate(q = 0)
+  ) %>%
+  dplyr::group_by(region, scenario) %>%
+  dplyr::arrange(year) %>%
+  dplyr::mutate(percent_cumulative = cumprod(1 + (q/100))) %>%
+  dplyr::mutate(value = value_base * percent_cumulative) %>%
+  dplyr::ungroup()

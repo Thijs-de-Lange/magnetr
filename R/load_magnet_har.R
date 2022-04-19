@@ -346,7 +346,8 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
   if(indicator == "pop") {
     output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, ""),
-                 magnet_scenario_support("POP", scenarios, periods, path_update, "Update", "har"))
+                 magnet_scenario_support("POP", scenarios, periods, path_update, "Update", "har")) %>%
+      dplyr::select(-indicator)
 
 
 
@@ -398,7 +399,8 @@ if(all(indicator %in% magnet_indicators) == FALSE){
                        na.rm = TRUE),
                 .groups = "drop"
       ) %>%
-      dplyr::rename(value_base = value)
+      dplyr::rename(value_base = value) %>%
+      dplyr::select(-indicator)
 
     qgdp <- magnet_scenario_support("QGDP", scenarios, periods, path_solutions, "Solution", "sol") %>%
       dplyr::rename(q = value) %>%
@@ -411,7 +413,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       rbind(., gdp_base %>%
               dplyr::mutate(q = 0)
       ) %>%
-      dplyr::group_by(indicator, region, scenario, variable) %>%
+      dplyr::group_by(region, scenario) %>%
       dplyr::arrange(year) %>%
       dplyr::mutate(percent_cumulative = cumprod(1 + (q/100))) %>%
       dplyr::mutate(value = value_base * percent_cumulative) %>%
