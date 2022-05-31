@@ -606,12 +606,12 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   #  if (all(regions %in% output$region) == FALSE){
  #     return("country/region name(s) are incorrect") } else {
 
-        return(output)
+
   #    }
 
   }
 
-
+  return(output)
 }
 
 utils::globalVariables(c(".", "commodity", "commodity1", "variable1", "region", "year", "scenario", "value", "value_base", "percent_cumulative", "magnet_indicators"))
