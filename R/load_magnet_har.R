@@ -141,7 +141,7 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
     d1_scenarios_all <- rbind(d1_scenarios_all, d1_periods_all) #%>%
       #dplyr::filter(region %in% regions)
   }
-  print(d1_scenarios_all)
+  return(d1_scenarios_all)
 }
 
 
@@ -270,7 +270,7 @@ magnet_base_support <- function(indicators, scenarios, base_year, file_path, fil
       #dplyr::filter(region %in% regions)
 
   }
-  print(d1_scenarios_all)
+  return(d1_scenarios_all)
 }
 
 
@@ -303,9 +303,9 @@ magnet_scenario <- function(indicators, scenarios, periods, file_path, file_type
 
   #shows warning when regions used as input does not correspond with regions in dataset
   #if (all(regions %in% output$region) == FALSE){
-  #  print("country/region name(s) are incorrect") } else {
+  #  return("country/region name(s) are incorrect") } else {
 
-    print(output)
+    return(output)
 #}
 }
 
@@ -317,9 +317,9 @@ magnet_base <- function(indicators, scenarios, base_year, file_path, file_type) 
 
   #shows warning when regions used as input does not correspond with regions in dataset
  # if (all(regions %in% output$region) == FALSE){
-#    print("country/region name(s) are incorrect") } else {
+#    return("country/region name(s) are incorrect") } else {
 
-  print(output)
+  return(output)
 #    }
 }
 
@@ -604,9 +604,9 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   }
     #shows warning when regions used as input does not correspond with regions in dataset
   #  if (all(regions %in% output$region) == FALSE){
- #     print("country/region name(s) are incorrect") } else {
+ #     return("country/region name(s) are incorrect") } else {
 
-        print(output)
+        return(output)
   #    }
 
   }
