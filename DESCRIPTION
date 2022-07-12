@@ -22,7 +22,8 @@ Imports:
     dplyr,
     HARr,
     tidyr,
-    utils
+    utils,
+    reshape2
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
 VignetteBuilder: knitr
