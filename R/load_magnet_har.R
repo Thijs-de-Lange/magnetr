@@ -1,4 +1,4 @@
-#'@export
+#' @export
 magnet_scenario_support <- function(indicators, scenarios, periods, file_path, file_type, file_suffix) {
   d1_scenarios_all <- NULL
   for (k in 1:length(scenarios)) {

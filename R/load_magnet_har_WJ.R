@@ -1,4 +1,4 @@
-#'@export
+#' @export
 magnet_read_all_headers <- function(fullfilepath, header_as_valcolname = FALSE) {
   #Function returns all headers in a list of tidy data frames. Also works for sets.
   d1a <- HARr::read_har(file.path(fullfilepath))
