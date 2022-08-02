@@ -14,7 +14,7 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
   #      d1a <- HARr::read_har("./tmp.har")
   #      file.remove("./tmp.har")
   #      file.remove("./tmp.gdx")
-      }
+  #    }
 
 
       if (all(indicators %in% names(d1a)) == FALSE){
