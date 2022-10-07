@@ -369,7 +369,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
     output <- dplyr::left_join(qlab, evfb) %>%
       dplyr::mutate(value = ifelse(qlab == 0, 0, evfb/qlab))
 
-    } else if (indicator == "net_wage") {
+    } else if (indicator == "net_nominal_wage") {
       qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
                     magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har")) %>%
         dplyr::select(-indicator, - variable_name) %>%
@@ -383,6 +383,68 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       output <- dplyr::left_join(qlab, evos) %>%
         dplyr::mutate(value = ifelse(qlab == 0, 0, evos/qlab))
 
+    } else if (indicator == "net_real_wage") {
+      qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har")) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::rename(qlab = value)
+
+      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "_Update", "har")) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::rename(evos = value)
+
+      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "_Update", "har")) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::rename(evos = value)
+
+
+      real_wage <- dplyr::left_join(qlab, evos) %>%
+        dplyr::mutate(real_wage = ifelse(qlab == 0, 0, evos/qlab))
+
+      pgdp <- magnet_scenario_support("PGDP", scenarios, periods, path_solutions, "_Solution", "sol") %>%
+      rbind(., magnet_scenario_support("PGDP", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
+              mutate(year = base_year,
+                     value = 0)) %>%
+        dplyr::rename(pgdp = value) %>%
+        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::mutate(year = as.character(year)) %>%
+        dplyr::arrange(year) %>%
+        dplyr::mutate(percent_cumulative = cumprod(1 + (pgdp/100)))
+
+
+      output <- dplyr::left_join(real_wage, pgdp) %>%
+        dplyr::mutate(value = real_wage * percent_cumulative)
+
+
+
+
+
+
+      #net_nominal_wage <- 100
+
+      #ppriv <- -3.9
+
+
+
+      #real_wage <- net_wage*(1-(pgdp/100))
+
+
+      ##################################################
+
+ #real_price <- nominal_price*(1-(pgdp/100))
+
+ #real_price_change <- ppa - pgdp
+
+ #real_GDP <- qgdp
+
+ #######################################################
+
+
+
+      ###Calculate real wages, ppri + market price of sluggish endowments? PMES (coefficient pe)?
+#pfactreal?
 
   } else if (indicator == "nutrient_cons_pc") {
     output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, "_view"),
