@@ -60,26 +60,26 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
           regions <-  dimnames(d1)[[3]]
 
           atr_2 <- attributes(d1)$dim[[2]]
-          if (atr_2 == "1")  {
-            for (n in 1:length(regions)) {
+          #if (atr_2 == "1")  {
+         #   for (n in 1:length(regions)) {
+#
+  #            d1_sel <- d1[, , regions[n]]
+#
+  #            d1_regions <- d1_sel %>%
+  #              data.frame() %>%
+   #             dplyr::rename("value" = ".") %>%
+   #             dplyr::mutate(commodity = row.names(.)) %>%
+   #             dplyr::mutate(indicator = indicators[m]) %>%
+   #             dplyr::mutate(region = regions[n]) %>%
+   #             dplyr::mutate(scenario = scenarios[k]) %>%
+    #            dplyr::mutate(year = as.numeric(substr(periods[l], 6, 9))) %>%
+    #            dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
 
-              d1_sel <- d1[, , regions[n]]
 
-              d1_regions <- d1_sel %>%
-                data.frame() %>%
-                dplyr::rename("value" = ".") %>%
-                dplyr::mutate(commodity = row.names(.)) %>%
-                dplyr::mutate(indicator = indicators[m]) %>%
-                dplyr::mutate(region = regions[n]) %>%
-                dplyr::mutate(scenario = scenarios[k]) %>%
-                dplyr::mutate(year = as.numeric(substr(periods[l], 6, 9))) %>%
-                dplyr::mutate(variable_name =  names(attributes(d1)$dim[1]))
-
-
-              d1_regions_all <- rbind(d1_regions_all, d1_regions)
-            }
-            d1_indicators_all <- rbind(d1_indicators_all, d1_regions_all)
-          } else {
+     #         d1_regions_all <- rbind(d1_regions_all, d1_regions)
+      #      }
+       #     d1_indicators_all <- rbind(d1_indicators_all, d1_regions_all)
+       #   } else {
             d1_regions_all <- NULL
             for (n in 1:length(regions)) {
 
@@ -99,7 +99,7 @@ magnet_scenario_support <- function(indicators, scenarios, periods, file_path, f
               d1_regions_all <- rbind(d1_regions_all, d1_regions)
             }
             d1_indicators_all <- rbind(d1_indicators_all, d1_regions_all)
-          }
+      #    }
 
           # indicator with 4 dimensions
         } else {
@@ -394,31 +394,23 @@ if(all(indicator %in% magnet_indicators) == FALSE){
         dplyr::select(-indicator, - variable_name) %>%
         dplyr::rename(evos = value)
 
-      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "_Update", "har")) %>%
-        dplyr::select(-indicator, - variable_name) %>%
-        dplyr::rename(evos = value)
-
 
       real_wage <- dplyr::left_join(qlab, evos) %>%
         dplyr::mutate(real_wage = ifelse(qlab == 0, 0, evos/qlab))
 
       pgdp <- magnet_scenario_support("PGDP", scenarios, periods, path_solutions, "_Solution", "sol") %>%
       rbind(., magnet_scenario_support("PGDP", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
-              mutate(year = base_year,
+              dplyr::mutate(year = base_year,
                      value = 0)) %>%
         dplyr::rename(pgdp = value) %>%
-        dplyr::select(-indicator, - variable_name) %>%
+        dplyr::select(-indicator) %>%
         dplyr::mutate(year = as.character(year)) %>%
         dplyr::arrange(year) %>%
-        dplyr::mutate(percent_cumulative = cumprod(1 + (pgdp/100)))
+        dplyr::mutate(percent_cumulative = cumprod(1 - (pgdp/100)))
 
 
       output <- dplyr::left_join(real_wage, pgdp) %>%
         dplyr::mutate(value = real_wage * percent_cumulative)
-
-
-
 
 
 
@@ -450,7 +442,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
     output <- rbind(magnet_base_support("NSPC", scenarios, base_year, path_basedata, "_view"),
                     magnet_scenario_support("NSPC", scenarios, periods, path_update, "_update_view", "har"))
 
-  } else if (indicator == "gdp") {
+  } else if (indicator == "real_gdp") {
     gdp_base <- magnet_base_support("AG02", scenarios, base_year,  path_basedata, "_view") %>%
       dplyr::rename(commodity1 = region,
              region = commodity) %>%
