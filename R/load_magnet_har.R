@@ -324,7 +324,7 @@ magnet_base <- function(indicators, scenarios, base_year, file_path, file_type) 
 }
 
 
-magnet_indicators = c("pop", "qlab", "gross_wage", "net_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
+magnet_indicators = c("pop", "qlab", "gross_wage", "net_nominal_wage", "net_real_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
 
 
 
