@@ -324,7 +324,7 @@ magnet_base <- function(indicators, scenarios, base_year, file_path, file_type) 
 }
 
 
-magnet_indicators = c("pop", "qlab", "gross_wage", "net_nominal_wage", "net_real_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
+magnet_indicators = c("pop", "inflation_index", "qlab", "gross_wage", "net_nominal_wage", "net_real_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
 
 
 
@@ -349,6 +349,17 @@ if(all(indicator %in% magnet_indicators) == FALSE){
                  magnet_scenario_support("POP", scenarios, periods, path_update, "_Update", "har")) %>%
       dplyr::select(-indicator)
 
+  } else if (indicator == "inflation_index") {
+
+    output <- magnet_scenario_support("PGDP", scenarios, periods, path_solutions, "_Solution", "sol") %>%
+      rbind(., magnet_scenario_support("PGDP", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
+              dplyr::mutate(year = base_year,
+                            value = 0)) %>%
+      dplyr::rename(pgdp = value) %>%
+      dplyr::select(-indicator) %>%
+      dplyr::mutate(year = as.character(year)) %>%
+      dplyr::arrange(year) %>%
+      dplyr::mutate(percent_cumulative = cumprod(1 - (pgdp/100)))
 
 
   } else if (indicator == "qlab") {
