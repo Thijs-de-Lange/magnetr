@@ -526,7 +526,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
         dplyr::mutate(vpb_volume = vdpb_volume + vmpb_volume)
 
       output <- dplyr::left_join(vpb_value, vpb_volume) %>%
-        dplyr::mutate(price_cons_good_market_price = vpb_value / vpb_volume)
+        dplyr::mutate(value = vpb_value / vpb_volume)
 
   } else if (indicator == "endow_market_price") {
     vfm_value <- rbind(magnet_base_support("VFM", scenarios, base_year, path_basedata, ""),
@@ -635,7 +635,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       dplyr::mutate(vpm_volume = vdpm_volume + vipm_volume)
 
     output <- dplyr::left_join(vpa_value, vpm_volume) %>%
-      dplyr::mutate(price_consumer_good = vpa_value / vpm_volume)
+      dplyr::mutate(value = vpa_value / vpm_volume)
 
 
 
