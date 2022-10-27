@@ -324,7 +324,7 @@ magnet_base <- function(indicators, scenarios, base_year, file_path, file_type) 
 }
 
 
-magnet_indicators = c("pop", "inflation_index", "qlab", "gross_wage", "net_nominal_wage", "net_real_wage", "nutrient_cons_pc", "gdp", "price_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
+magnet_indicators = c("pop", "inflation_index", "qlab", "gross_wage", "net_nominal_wage", "net_real_wage", "nutrient_cons_pc", "gdp", "nominal_cons_good_market_price", "endow_market_price", "price_cons_good_agent_price")
 
 
 
@@ -359,6 +359,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       dplyr::select(-indicator) %>%
       dplyr::mutate(year = as.character(year)) %>%
       dplyr::arrange(year) %>%
+      dplyr::group_by(region, scenario) %>%
       dplyr::mutate(percent_cumulative = cumprod(1 - (pgdp/100)))
 
 
@@ -393,35 +394,6 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
       output <- dplyr::left_join(qlab, evos) %>%
         dplyr::mutate(value = ifelse(qlab == 0, 0, evos/qlab))
-
-    } else if (indicator == "net_real_wage") {
-      qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har")) %>%
-        dplyr::select(-indicator, - variable_name) %>%
-        dplyr::rename(qlab = value)
-
-      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "_Update", "har")) %>%
-        dplyr::select(-indicator, - variable_name) %>%
-        dplyr::rename(evos = value)
-
-
-      real_wage <- dplyr::left_join(qlab, evos) %>%
-        dplyr::mutate(real_wage = ifelse(qlab == 0, 0, evos/qlab))
-
-      pgdp <- magnet_scenario_support("PGDP", scenarios, periods, path_solutions, "_Solution", "sol") %>%
-      rbind(., magnet_scenario_support("PGDP", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
-              dplyr::mutate(year = base_year,
-                     value = 0)) %>%
-        dplyr::rename(pgdp = value) %>%
-        dplyr::select(-indicator) %>%
-        dplyr::mutate(year = as.character(year)) %>%
-        dplyr::arrange(year) %>%
-        dplyr::mutate(percent_cumulative = cumprod(1 - (pgdp/100)))
-
-
-      output <- dplyr::left_join(real_wage, pgdp) %>%
-        dplyr::mutate(value = real_wage * percent_cumulative)
 
 
 
@@ -484,7 +456,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       dplyr::mutate(value = value_base * percent_cumulative) %>%
       dplyr::ungroup()
 
-    } else if (indicator == "price_cons_good_market_price") {
+    } else if (indicator == "nominal_cons_good_market_price") {
       vdpb_value <- rbind(magnet_base_support("VDPB", scenarios, base_year, path_basedata, ""),
                           magnet_scenario_support("VDPB", scenarios, periods, path_update, "_Update", "har")) %>%
         dplyr::rename(vdpb_value = value) %>%
@@ -555,6 +527,7 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
       output <- dplyr::left_join(vpb_value, vpb_volume) %>%
         dplyr::mutate(price_cons_good_market_price = vpb_value / vpb_volume)
+
   } else if (indicator == "endow_market_price") {
     vfm_value <- rbind(magnet_base_support("VFM", scenarios, base_year, path_basedata, ""),
                       magnet_scenario_support("VFM", scenarios, periods, path_update, "_Update", "har")) %>%
