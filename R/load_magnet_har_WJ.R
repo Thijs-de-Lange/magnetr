@@ -120,6 +120,7 @@ getinfomodelsettings <- function(x){
   modelsettings <- gsub("- ","",str_trim(answertxt[13,]))
 }
 
+#' @export
 magnet_get_scenarioinfo <- function(maindir) {
   #Creates a dataframe with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
