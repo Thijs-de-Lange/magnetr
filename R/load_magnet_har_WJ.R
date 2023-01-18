@@ -53,10 +53,17 @@ magnet_write_har <- function(dflist, outfilename) {
   #The write har is sensitive to the order of the values related to the order of the dimensions and the code below tries to do that
 
   ar <- list()
+
   for (h in names(dflist)) {
     df <- dflist[[h]]
 
     if ("value" %in% colnames(df)){df <- rename(df, Value = value)}
+
+    if(ncol(df) == 1 & is.character(df$Value)){
+      #This means it's a set, and writing just simple means putting the list of strings in there.
+      ar[[h]] <- df$Value
+      next
+    }
 
     dimlist = list()
     dimsizelist = list()
