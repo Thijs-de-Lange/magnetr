@@ -1,15 +1,16 @@
-#' @export
 
 ### Main har read and write functions ------
-
+#' @export
 magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c("XXCD","XXCR","XXCP","XXHS"),
                                     useCoefficientsAsNames = FALSE) {
   #Function returns all headers in a list of tidy data frames, where the names of the list are the headers (or coefficients).
+  #It converts all the header names and column names (except Value) to upper case. This is our default but the HARr package spits out lower case
 
-  dflist <- HARr::read_har(file.path(fullfilepath), useCoefficientsAsNames = useCoefficientsAsNames)
+  dflist <- HARr::read_har(file.path(fullfilepath), useCoefficientsAsNames = useCoefficientsAsNames, toLowerCase = FALSE)
 
   # Sometimes coefficient names can be duplicate, very unhandy so fixing here by forcing names to be unique.
-  headers <- make.names(names(dflist), unique = TRUE)
+  # CONVERTING TO UPPERCASE as sometimes the headers are note consistent
+  headers <- make.names(toupper(names(dflist)), unique = TRUE)
   names(dflist) <- headers
 
   if(length(whitelist)>0){ # this simple filters to keep anything in the whitelist.
@@ -24,17 +25,20 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
   dflist_out <- list()
   for (h in headers) {
     d1_header <- reshape2::melt(dflist[[h]])
+
     if(setequal(colnames(d1_header), c("Var1","Var2","Var3","Var4","Var5","Var6","Var7","value"))){
       # this catches some odd behaviour when the header contains a single vector. Bug in HARr package.
       d1_header <- select(d1_header, -c(Var1,Var2,Var3,Var4,Var5,Var6,Var7))
     }
+    # CONVERTING TO UPPERCASE just in case, probably is ok everywhere but HARr setting can mess it up.
+    colnames(d1_header) <- toupper(colnames(d1_header))
 
     #Sometines, like with REG,REG, colnames can be double, should be avoided
     colnames(d1_header) <- gsub("REG\\.1","REG_2", # this is the most typical case, and I change to REG and REG_2 here.
       make.names(colnames(d1_header), unique = TRUE))
 
     #using Value with capital V by default
-    d1_header <- rename(d1_header, Value = value)
+    d1_header <- rename(d1_header, Value = VALUE)
 
     dflist_out[[h]] <- d1_header
   }
@@ -42,6 +46,7 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
   return(dflist_out)
 }
 
+#' @export
 magnet_write_har <- function(dflist, outfilename) {
   #Needs some testing, but takes a list of named dataframes where the names should be the
   #final HEADER names that will be in the output hr file
@@ -141,8 +146,8 @@ magnet_get_scenarioinfo <- function(maindir) {
   return(scenariosinfo)
 }
 
-### Scenario reader fucntions -----
-
+### Scenario reader functions -----
+#' @export
 readscenariofile <- function(fullfilepath, scenname, whitelist = c()) {
   #Reads a single scenario file (.har or .sol) and adds year and scenario name info to each dataframes in the list.
 
@@ -264,6 +269,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(), overwrite_sce
   return(df_basedata)
 }
 
+#' @export
 readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c()){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
@@ -306,7 +312,7 @@ makesolindex <- function(df, fy = "2014") {
   return(df)
 }
 
-
+#' @export
 mergescendata <- function(df1, df2) {
   # merges list of lists
   #in usal magnet data set up this should be Update, Update_view, Update_tax, and Solution as names
