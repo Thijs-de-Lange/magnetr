@@ -1,12 +1,11 @@
 
 ### Main har read and write functions ------
 #' @export
-magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c("XXCD","XXCR","XXCP","XXHS"),
-                                    useCoefficientsAsNames = FALSE) {
+magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c(), useCoefficientsAsNames = FALSE) {
   #Function returns all headers in a list of tidy data frames, where the names of the list are the headers (or coefficients).
   #It converts all the header names and column names (except Value) to upper case. This is our default but the HARr package spits out lower case
 
-  dflist <- HARr::read_har(file.path(fullfilepath), useCoefficientsAsNames = useCoefficientsAsNames, toLowerCase = FALSE)
+  dflist <- HARr::read_har(fullfilepath, useCoefficientsAsNames = useCoefficientsAsNames, toLowerCase = FALSE)
 
   # Sometimes coefficient names can be duplicate, very unhandy so fixing here by forcing names to be unique.
   # CONVERTING TO UPPERCASE as sometimes the headers are note consistent
@@ -16,11 +15,11 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
   if(length(whitelist)>0){ # this simple filters to keep anything in the whitelist.
     headers <- intersect(headers, whitelist)
   }
-  if(length(blacklist)>0){
-    #by default in the function call this blacklist the "XXCD","XXCR","XXCP","XXHS"
-    #headers which pop up with readhar and contain some meta data
-    headers <- setdiff(headers, blacklist)
-  }
+
+  #by default blacklist the "XXCD","XXCR","XXCP","XXHS"
+  #headers which pop up with readhar and contain some meta data
+  blacklist = c(blacklist,"XXCD","XXCR","XXCP","XXHS")
+  headers <- setdiff(headers, blacklist)
 
   dflist_out <- list()
   for (h in headers) {
@@ -30,12 +29,23 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
       # this catches some odd behaviour when the header contains a single vector. Bug in HARr package.
       d1_header <- select(d1_header, -c(Var1,Var2,Var3,Var4,Var5,Var6,Var7))
     }
+    if(setequal(colnames(d1_header), c("Var1","Var2","value")) & is.integer(d1_header$value)){
+      # this catches some odd behaviour when the header is integer lists, like mappings or  Bug in HARr package.
+      d1_header <- select(d1_header, -c(Var1,Var2))
+    }
     # CONVERTING TO UPPERCASE just in case, probably is ok everywhere but HARr setting can mess it up.
     colnames(d1_header) <- toupper(colnames(d1_header))
 
     #Sometines, like with REG,REG, colnames can be double, should be avoided
-    colnames(d1_header) <- gsub("REG\\.1","REG_2", # this is the most typical case, and I change to REG and REG_2 here.
-      make.names(colnames(d1_header), unique = TRUE))
+    cnamesnew <-  make.names(colnames(d1_header), unique = TRUE)
+      #changeing some commendouble names names to _2 instead of .1
+    cnamesnew <- gsub("REG\\.1","REG_2",cnamesnew) # this is the most typical case, and I change to REG and REG_2 here.
+    cnamesnew <- gsub("SAMAC\\.1","SAMAC_2",cnamesnew)
+    cnamesnew <- gsub("CTRY\\.1","CTRY_2",cnamesnew)
+    cnamesnew <- gsub("TRAD_COMM\\.1","TRAD_COMM_2",cnamesnew)
+    cnamesnew <- gsub("COMM\\.1","COMM_2",cnamesnew)
+
+    colnames(d1_header) <- cnamesnew
 
     #using Value with capital V by default
     d1_header <- rename(d1_header, Value = VALUE)
@@ -81,6 +91,10 @@ magnet_write_har <- function(dflist, outfilename) {
     # By default we use "REG_2" for duplicate dimensions. For har file bring back to regular REG.
     names(dimlist) <- replace(dimnames, dimnames == "REG_2", "REG")
     names(dimlist) <- replace(dimnames, dimnames == "REG_3", "REG")
+    names(dimlist) <- replace(dimnames, dimnames == "CTRY_2", "CTRY")
+    names(dimlist) <- replace(dimnames, dimnames == "SAMAC_2", "SAMAC")
+    names(dimlist) <- replace(dimnames, dimnames == "COMM_2", "COMM")
+    names(dimlist) <- replace(dimnames, dimnames == "TRAD_COMM_2", "TRAD_COMM")
 
     ar[[h]] <- array(
       outputdf$Value,
@@ -93,37 +107,37 @@ magnet_write_har <- function(dflist, outfilename) {
 }
 
 ### Dealing with MAGNET scenario names -----
-getinfobasedata <- function(x){
-  answertxt <- read.delim(x,header=FALSE)
-  BaseData_b <- str_trim(answertxt[6,])
-}
-
-getinfoperiods <- function(x){
-  answertxt <- read.delim(x,header=FALSE)
-  answertxt <- subset(answertxt, grepl("Period", V1)) %>%
-    mutate(Periods = gsub(" ","",str_extract(V1,"\\d{4} - \\d{4}")))
-  return(paste(answertxt$Periods, collapse = ";"))
-}
-
-getinfomodelsets <- function(x){
-  answertxt <- read.delim(x,header=FALSE)
-  modelsets <- gsub("- ","",str_trim(answertxt[9,]))
-}
-
-getinfomodelpar <- function(x){
-  answertxt <- read.delim(x,header=FALSE)
-  modelpar <- gsub("- ","",str_trim(answertxt[11,]))
-}
-
-getinfomodelsettings <- function(x){
-  answertxt <- read.delim(x,header=FALSE)
-  modelsettings <- gsub("- ","",str_trim(answertxt[13,]))
-}
 
 #' @export
 magnet_get_scenarioinfo <- function(maindir) {
   #Creates a dataframe with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
+  getinfobasedata <- function(x){
+    answertxt <- read.delim(x,header=FALSE)
+    BaseData_b <- str_trim(answertxt[6,])
+  }
+
+  getinfoperiods <- function(x){
+    answertxt <- read.delim(x,header=FALSE)
+    answertxt <- subset(answertxt, grepl("Period", V1)) %>%
+      mutate(Periods = gsub(" ","",str_extract(V1,"\\d{4} - \\d{4}")))
+    return(paste(answertxt$Periods, collapse = ";"))
+  }
+
+  getinfomodelsets <- function(x){
+    answertxt <- read.delim(x,header=FALSE)
+    modelsets <- gsub("- ","",str_trim(answertxt[9,]))
+  }
+
+  getinfomodelpar <- function(x){
+    answertxt <- read.delim(x,header=FALSE)
+    modelpar <- gsub("- ","",str_trim(answertxt[11,]))
+  }
+
+  getinfomodelsettings <- function(x){
+    answertxt <- read.delim(x,header=FALSE)
+    modelsettings <- gsub("- ","",str_trim(answertxt[13,]))
+  }
 
   scennamesall = data.frame()
 
@@ -138,6 +152,42 @@ magnet_get_scenarioinfo <- function(maindir) {
   rownames(scen) <- NULL
 
   scennamesall <- rbind(scennamesall,scen)
+
+  # scentxt <- read.delim(scenfile,  header = FALSE)
+  # colnames(scentxt) <- "Settings"
+  # scentxt$Section <- scentxt$Settings
+  # for (i in 1:length(scentxt$Settings)) {
+  #   t <- scentxt$Settings[i]
+  #   hdr <- TRUE
+  #   if (substr(t, 1, 3) == "   ") {
+  #     hdr <- FALSE
+  #   }
+  #   if(hdr){
+  #     hdrtxt = t
+  #   }
+  #   scentxt$Section[i] <- hdrtxt
+  # }
+  # basedata <- normalizePath(file.path(maindir,
+  #             subset(scentxt, Section == "Base data file" & Settings != "Base data file")$Settings %>% str_trim()))
+  # periods <- subset(scentxt, grepl("Period",Section)) %>% rename(Period = Section)
+  #
+  # periods$Question <- ""
+  # periods$Answer <- ""
+  # for (i in 1:length(periods$Settings)) {
+  #   t <- periods$Settings[i]
+  #   answertxt = ""
+  #   hdr <- TRUE
+  #   if (grepl(" - ",t)) {
+  #     hdr <- FALSE
+  #     answertxt = t
+  #   }
+  #   if(hdr){
+  #     hdrtxt = t
+  #   }
+  #   periods$Question[i] <- str_trim(hdrtxt)
+  #   periods$Answer[i] <- gsub("- ","",str_trim(answertxt))
+  # }
+  # periods <- subset(periods,Answer != "")
 
   scenariosinfo <- scennamesall %>%
     mutate(answerfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
@@ -287,21 +337,19 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c()){
   df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist)
 
   df_scendata <- mergescendata(df_scendata, df_basedata)
+  baseyear <- min(df_scendata$Update$YEAR$Value)
 
   df_scendata$Solution_index <- list()
   for (h in names(df_scendata$Solution)) {
-    df_scendata$Solution_index[[h]] <- makesolindex(df_scendata$Solution[[h]])
+    df_scendata$Solution_index[[h]] <- makesolindex(df_scendata$Solution[[h]],as.character(baseyear))
   }
 
   return(df_scendata)
 
 }
 
-makesolindex <- function(df, fy = "2014") {
-  #creates index version of the sol file.
-  # TODO still make the first year dynamic.
-  # Probalby can be done a lot smmrter all this.
-
+makesolindex <- function(df, fy) {
+  #creates index version of the sol file. fy is the baseyear, has to be supplied as e.g. 2014
   if(nrow(df) == 0){return(NULL)}
   if(class(df$Value) %in% c("character")){return(NULL)}
 
@@ -309,14 +357,22 @@ makesolindex <- function(df, fy = "2014") {
   df <- df[order(df$Year),]
 
   years <- c(fy,unique(df$Year))
-  df <- spread(df, Year, Value)
-  df[[fy]] = 1 #add base is 1 for index fy is
+  df <-  tryCatch(
+    {
+      df <- spread(df, Year, Value)
+      df[[fy]] = 1 #add base is 1 for index fy is
+      for (p in 2:length(years)){ # probably smarter ways to do this, but seems to work!
+        df[[years[p]]] <- df[[years[p-1]]] * (1+df[[years[p]]]/100)
+      }
+      gather(df, Year, Value, all_of(years))
+    },
+    error=function(cond) {
+      message("Error making index of sol variable, something must be wrong")
+      message(cond)
+      return(NULL)
+    }
+  )
 
-  for (p in 2:length(years)){ # probably smarter ways to do this, but seems to work!
-    df[[years[p]]] <- df[[years[p-1]]] * (1+df[[years[p]]]/100)
-  }
-
-  df <- gather(df, Year, Value, all_of(years))
   return(df)
 }
 
@@ -417,3 +473,18 @@ left_join0 <- function(x, y, fillwith = 0){
   }
   z
 }
+
+set_header_as_valcolname <- function(dflist){
+
+ # This just uses the header as the Value col name, sometimes useful.
+  for (header in names(dflist)) {
+    d1_header <- dflist[[header]]
+    #very likely a smarter way to do this
+    d1_header[[header]] <- d1_header$Value
+    d1_header <- select(d1_header, -Value)
+
+    dflist[[header]] <- d1_header
+  }
+  return(dflist)
+}
+
