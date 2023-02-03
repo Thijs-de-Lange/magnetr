@@ -207,13 +207,13 @@ magnet_get_scenarioinfo <- function(maindir) {
 
 ### Scenario reader functions -----
 #' @export
-readscenariofile <- function(fullfilepath, scenname, whitelist = c()) {
+readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef = TRUE) {
   #Reads a single scenario file (.har or .sol) and adds year and scenario name info to each dataframes in the list.
 
   df <-  tryCatch(
     {
       message(paste("Starting to read",scenname,"from", fullfilepath))
-      magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = TRUE)
+      magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     },
     error=function(cond) {
       message("Error reading HArr file, here's the error:")
@@ -245,8 +245,7 @@ addyearandscen <- function(df, year, scenario){
   return(df)
 }
 
-
-readscenario <- function(scenname, maindir, whitelist = c()) {
+readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   # Reads all files in a scenario for a given scenario name.
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
@@ -259,7 +258,7 @@ readscenario <- function(scenname, maindir, whitelist = c()) {
 
   df_update <- list()
   for (f in updatefiles) {
-    dftmp <- readscenariofile(f,scenname,whitelist)
+    dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     for (n in names(dftmp)){
       df_update[[n]] <- rbind(df_update[[n]], dftmp[[n]])
     }
@@ -267,21 +266,21 @@ readscenario <- function(scenname, maindir, whitelist = c()) {
 
   df_update_view <- list()
   for (f in updateviewfiles) {
-    dftmp <- readscenariofile(f,scenname,whitelist)
+    dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     for (n in names(dftmp)){
       df_update_view[[n]] <- rbind(df_update_view[[n]], dftmp[[n]])
     }
   }
   df_update_tax <- list()
   for (f in updatetaxfiles) {
-    dftmp <- readscenariofile(f,scenname,whitelist)
+    dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     for (n in names(dftmp)){
       df_update_tax[[n]] <- rbind(df_update_tax[[n]], dftmp[[n]])
     }
   }
   df_solution <- list()
   for (f in solfiles) {
-    dftmp <- readscenariofile(f,scenname,whitelist)
+    dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     for (n in names(dftmp)){
       df_solution[[n]] <- rbind(df_solution[[n]], dftmp[[n]])
     }
@@ -291,21 +290,21 @@ readscenario <- function(scenname, maindir, whitelist = c()) {
   return(df_scendata)
 }
 
-readbasedata <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, overwrite_scenname = FALSE){
+readbasedata <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, overwrite_scenname = FALSE, readcoef = TRUE){
   #Reads basedata.
   # Uses the scenario info which can possible have a normal run as input, so it tries to read solution file if it is ther
   # Recursively then will also read the original basedata. I think it works ;).
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
-  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = whitelist,useCoefficientsAsNames = TRUE)
+  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = whitelist,useCoefficientsAsNames = readcoef)
   # need the year data if it's not in the whitelist
   if(!("YEAR" %in% colnames(BaseData_b))){
-    BaseData_b$YEAR <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c("YEAR"),useCoefficientsAsNames = TRUE)$YEAR
+    BaseData_b$YEAR <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c("YEAR"),useCoefficientsAsNames = readcoef)$YEAR
   }
 
 
-  BaseData_b_view <- magnet_read_all_headers(sceninfo$BaseData_b_view, whitelist = whitelist,useCoefficientsAsNames = TRUE)
-  BaseData_b_tax <- magnet_read_all_headers(sceninfo$BaseData_b_tax, whitelist = whitelist,useCoefficientsAsNames = TRUE)
+  BaseData_b_view <- magnet_read_all_headers(sceninfo$BaseData_b_view, whitelist = whitelist,useCoefficientsAsNames = readcoef)
+  BaseData_b_tax <- magnet_read_all_headers(sceninfo$BaseData_b_tax, whitelist = whitelist,useCoefficientsAsNames = readcoef)
 
   year = as.character(BaseData_b$YEAR$Value)
 
@@ -316,7 +315,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(), recursive = F
   BaseData_b_tax <- addyearandscen(BaseData_b_tax, year, scenname)
 
   if(sceninfo$BaseData_b_solution != "" & recursive == TRUE){
-    BaseData_b_solution <- magnet_read_all_headers(sceninfo$BaseData_b_solution, whitelist = whitelist,useCoefficientsAsNames = TRUE)
+    BaseData_b_solution <- magnet_read_all_headers(sceninfo$BaseData_b_solution, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     BaseData_b_solution <- addyearandscen(BaseData_b_solution, year, scenname)
   } else {BaseData_b_solution <- NULL}
 
@@ -334,13 +333,13 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(), recursive = F
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
 
-  df_scendata <- readscenario(scenname, maindir, whitelist = whitelist)
-  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = FALSE)
+  df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef)
+  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = FALSE, readcoef = readcoef)
 
   df_scendata <- mergescendata(df_scendata, df_basedata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
@@ -532,7 +531,6 @@ set_header_as_valcolname <- function(dflist){
   return(dflist)
 }
 
-<<<<<<< HEAD
 find_any_header <- function(df_list, coef, indexsol = TRUE) {
   # this is just to get a coefficient regardless of where it is in the database
   # returns the first one it encountes
@@ -550,6 +548,3 @@ find_any_header <- function(df_list, coef, indexsol = TRUE) {
     }
   }
 }
-
-=======
->>>>>>> 825bdf11fe858e58ec2080d7a80ee95644c2f4ad
