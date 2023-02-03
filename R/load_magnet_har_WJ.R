@@ -532,6 +532,7 @@ set_header_as_valcolname <- function(dflist){
   return(dflist)
 }
 
+<<<<<<< HEAD
 find_any_header <- function(df_list, coef, indexsol = TRUE) {
   # this is just to get a coefficient regardless of where it is in the database
   # returns the first one it encountes
@@ -550,3 +551,5 @@ find_any_header <- function(df_list, coef, indexsol = TRUE) {
   }
 }
 
+=======
+>>>>>>> 825bdf11fe858e58ec2080d7a80ee95644c2f4ad
