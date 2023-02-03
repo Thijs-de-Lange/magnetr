@@ -191,6 +191,7 @@ magnet_get_scenarioinfo <- function(maindir) {
 
   scenariosinfo <- scennamesall %>%
     mutate(answerfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
+    subset(file.exists(answerfile)) %>%
     mutate(BaseData_b = file.path(maindir,unlist(lapply(answerfile, getinfobasedata)))) %>%
     mutate(BaseData_b_view = gsub("\\.har$","_view.har",BaseData_b), BaseData_b_tax = gsub("\\.har$","_tax.har",BaseData_b)) %>%
     mutate(BaseData_b_solution = ifelse(grepl("update_view",BaseData_b_view),
@@ -290,26 +291,31 @@ readscenario <- function(scenname, maindir, whitelist = c()) {
   return(df_scendata)
 }
 
-readbasedata <- function(scenname, scenariosinfo, whitelist = c(), overwrite_scenname = FALSE){
+readbasedata <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, overwrite_scenname = FALSE){
   #Reads basedata.
   # Uses the scenario info which can possible have a normal run as input, so it tries to read solution file if it is ther
   # Recursively then will also read the original basedata. I think it works ;).
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
-  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c(whitelist,"YEAR"),useCoefficientsAsNames = TRUE) # need the year data.
+  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = whitelist,useCoefficientsAsNames = TRUE)
+  # need the year data if it's not in the whitelist
+  if(!("YEAR" %in% colnames(BaseData_b))){
+    BaseData_b$YEAR <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c("YEAR"),useCoefficientsAsNames = TRUE)$YEAR
+  }
+
+
   BaseData_b_view <- magnet_read_all_headers(sceninfo$BaseData_b_view, whitelist = whitelist,useCoefficientsAsNames = TRUE)
   BaseData_b_tax <- magnet_read_all_headers(sceninfo$BaseData_b_tax, whitelist = whitelist,useCoefficientsAsNames = TRUE)
 
   year = as.character(BaseData_b$YEAR$Value)
 
-  #Using this in case the
+  #Using this in case the basedata is another update file and we want to go recursive
   if(overwrite_scenname != FALSE){scenname = overwrite_scenname}
   BaseData_b <- addyearandscen(BaseData_b, year, scenname)
   BaseData_b_view <- addyearandscen(BaseData_b_view, year, scenname)
   BaseData_b_tax <- addyearandscen(BaseData_b_tax, year, scenname)
-  BaseData_b_tax <- addyearandscen(BaseData_b_tax, year, scenname)
 
-  if(sceninfo$BaseData_b_solution != ""){
+  if(sceninfo$BaseData_b_solution != "" & recursive == TRUE){
     BaseData_b_solution <- magnet_read_all_headers(sceninfo$BaseData_b_solution, whitelist = whitelist,useCoefficientsAsNames = TRUE)
     BaseData_b_solution <- addyearandscen(BaseData_b_solution, year, scenname)
   } else {BaseData_b_solution <- NULL}
@@ -317,7 +323,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(), overwrite_sce
   df_basedata <- list(Update = BaseData_b, Update_view = BaseData_b_view,
                       Update_tax = BaseData_b_tax, Solution = BaseData_b_solution)
 
-  if(grepl("_update.har$",sceninfo$BaseData_b)){
+  if(grepl("_update.har$",sceninfo$BaseData_b) & recursive == TRUE){
     # If it is an update file, go deeper but keep same scenario name.
     base_run <- gsub("_\\d{4}-\\d{4}_update.har$","", split_path(sceninfo$BaseData_b)[1])
     df_basedata_deeper <- readbasedata(base_run, scenariosinfo, overwrite_scenname = scenname)
@@ -328,13 +334,13 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(), overwrite_sce
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c()){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
 
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist)
-  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist)
+  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = FALSE)
 
   df_scendata <- mergescendata(df_scendata, df_basedata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
@@ -413,8 +419,6 @@ remove_zero_entries <- function(df){
   for (m in mainnames){
     headers <- names(df[[m]])
     for(h in headers){
-      print(h)
-      print(colnames(df[[m]][[h]]))
       if("REG_2" %in% colnames(df[[m]][[h]]) & "REG" %in% colnames(df[[m]][[h]])) {
         dftmp <- df[[m]][[h]] %>%
           group_by(across(c(-Value,-Year,-Scenario,-REG,-REG_2))) %>% mutate(Valuetest = sum(Value)) %>% ungroup()  %>%
@@ -426,7 +430,6 @@ remove_zero_entries <- function(df){
           subset(Valuetest != 0) %>% select(-Valuetest)
         df[[m]][[h]] <- dftmp
       }
-
     }
   }
   return(df)
@@ -444,6 +447,47 @@ write_scendata_csv <- function(df, dir = "."){
       write.csv(outcsv, file.path(fp, paste0(h,".csv")), row.names = FALSE)
     }
   }
+}
+
+makeaggs <- function(dflist, mapping) {
+
+  mapfrom <- colnames(mapping)[1]
+  mapto <- colnames(mapping)[2]
+
+  for (m in names(dflist)){
+    for(h in names(dflist[[m]])){
+      df1 <- dflist[[m]][[h]]
+      if(mapfrom %in% colnames(df1) & "Value" %in% colnames(df1)) {
+        if(!(class(df1$Value) %in% c("character"))){ # just excluding ppotential funny stuff
+          df1[[mapfrom]] <- plyr::mapvalues(df1[[mapfrom]],from=mapping[[mapfrom]],to=mapping[[mapto]],warn_missing = FALSE)
+          df1 <- df1 %>% group_by(across(-Value)) %>% summarise(Value = sum(Value))
+          dflist[[m]][[h]] <- unique(df1)
+        }
+      }
+    }
+  }
+  return(dflist)
+}
+
+addworld <- function(dflist) {
+
+  for (m in names(dflist)){
+    for(h in names(dflist[[m]])){
+      df1 <- dflist[[m]][[h]]
+      # to be smartified, both for situations with REG + REG_2 to and whether to include internal trade
+      if ("REG" %in% colnames(df1)){
+        dfwld <- select(df1, -REG) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup() %>%
+          mutate(REG = "World")
+        df1 <- bind_rows(df1, dfwld,dfeur)
+      }
+      if ("REG_2" %in% colnames(df1)){
+        dfwld <- select(df1, -REG_2) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup() %>%
+          mutate(REG_2 = "World")
+        df1 <- bind_rows(df1, dfwld,dfeur)
+      }
+    }
+  }
+  return(dfLIST)
 }
 
 ### Some simple helper functions ------
@@ -486,5 +530,23 @@ set_header_as_valcolname <- function(dflist){
     dflist[[header]] <- d1_header
   }
   return(dflist)
+}
+
+find_any_header <- function(df_list, coef, indexsol = TRUE) {
+  # this is just to get a coefficient regardless of where it is in the database
+  # returns the first one it encountes
+  if(indexsol){
+    excl = "Solution"
+  } else {
+    excl = "Solution_index"
+  }
+  for (m in setdiff(names(df_list), excl)){ #Excluding solution by default so that "Solution_index" will be used
+    headers <- names(df_list[[m]])
+    for(h in headers){
+      if (h == coef){
+        return(df_list[[m]][[h]])
+      }
+    }
+  }
 }
 
