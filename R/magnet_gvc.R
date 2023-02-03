@@ -1,4 +1,4 @@
-getMBALflows <- function(sets, bdata, aggsets = FALSE, threshold = 0.1) {
+getMBALflows <- function(sets, bdata, threshold = 0.1) {
   regs <- sets$REG$Value
   margs <- sets$MARG$Value
   agents <- c("hh","govt","CGDS")
@@ -355,9 +355,12 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
   cal <- bdata$NVOM %>% rename(COMM = PRIM_AGRI) %>% subset(NUTRIENTS == "CAL") %>% select(-NUTRIENTS) %>%
     mutate(Indicator = "Calories", Unit = "kcal")
 
+  quant <- bdata$NVOM %>% rename(COMM = PRIM_AGRI) %>% subset(NUTRIENTS == "QUANT") %>% select(-NUTRIENTS) %>%
+    mutate(Indicator = "Quant", Unit = "g")
+
   #FBDG header PEQ_FBDG geeft mapping.
 
-  MBALIndicators <- rbind(qprod,ldem, wtvl, co2eq, ch4,n2o,cal)
+  MBALIndicators <- rbind(qprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant)
 
   if(typeof(aggsets) == "list") {
     MBALIndicators$COMM <- plyr::mapvalues(MBALIndicators$COMM, aggsets$Value, aggsets$Header)
