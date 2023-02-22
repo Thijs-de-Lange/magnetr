@@ -345,14 +345,14 @@ if(all(indicator %in% magnet_indicators) == FALSE){
   } else {
 
   if(indicator == "pop") {
-    output <- rbind(magnet_base_support("POP", scenarios, base_year, path_basedata, ""),
-                 magnet_scenario_support("POP", scenarios, periods, path_update, "_Update", "har")) %>%
+    output <- rbind(magnet_base_support("pop", scenarios, base_year, path_basedata, ""),
+                 magnet_scenario_support("pop", scenarios, periods, path_update, "_Update", "har")) %>%
       dplyr::select(-indicator)
 
   } else if (indicator == "inflation_index") {
 
-    output <- magnet_scenario_support("PGDP", scenarios, periods, path_solutions, "_Solution", "sol") %>%
-      rbind(., magnet_scenario_support("PGDP", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
+    output <- magnet_scenario_support("pgdp", scenarios, periods, path_solutions, "_Solution", "sol") %>%
+      rbind(., magnet_scenario_support("pgdp", scenarios, periods[2], path_solutions, "_Solution", "sol") %>%
               dplyr::mutate(year = base_year,
                             value = 0)) %>%
       dplyr::rename(pgdp = value) %>%
@@ -364,17 +364,17 @@ if(all(indicator %in% magnet_indicators) == FALSE){
 
 
   } else if (indicator == "qlab") {
-    output <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
-                 magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har"))
+    output <- rbind(magnet_base_support("qlab", scenarios, base_year, path_basedata, ""),
+                 magnet_scenario_support("qlab", scenarios, periods, path_update, "_Update", "har"))
 
     } else if (indicator == "gross_wage") {
-    qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har")) %>%
+    qlab <- rbind(magnet_base_support("qlab", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("qlab", scenarios, periods, path_update, "_Update", "har")) %>%
       dplyr::select(-indicator, - variable_name) %>%
       dplyr::rename(qlab = value)
 
-    evfb <- rbind(magnet_base_support("EVFB", scenarios, base_year, path_basedata, ""),
-                  magnet_scenario_support("EVFB", scenarios, periods, path_update, "_Update", "har")) %>%
+    evfb <- rbind(magnet_base_support("evfb", scenarios, base_year, path_basedata, ""),
+                  magnet_scenario_support("evfb", scenarios, periods, path_update, "_Update", "har")) %>%
       dplyr::select(-indicator, - variable_name) %>%
       dplyr::rename(evfb = value)
 
@@ -382,13 +382,13 @@ if(all(indicator %in% magnet_indicators) == FALSE){
       dplyr::mutate(value = ifelse(qlab == 0, 0, evfb/qlab))
 
     } else if (indicator == "net_nominal_wage") {
-      qlab <- rbind(magnet_base_support("QLAB", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("QLAB", scenarios, periods, path_update, "_Update", "har")) %>%
+      qlab <- rbind(magnet_base_support("qlab", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("qlab", scenarios, periods, path_update, "_Update", "har")) %>%
         dplyr::select(-indicator, - variable_name) %>%
         dplyr::rename(qlab = value)
 
-      evos <- rbind(magnet_base_support("EVOS", scenarios, base_year, path_basedata, ""),
-                    magnet_scenario_support("EVOS", scenarios, periods, path_update, "_Update", "har")) %>%
+      evos <- rbind(magnet_base_support("evos", scenarios, base_year, path_basedata, ""),
+                    magnet_scenario_support("evos", scenarios, periods, path_update, "_Update", "har")) %>%
         dplyr::select(-indicator, - variable_name) %>%
         dplyr::rename(evos = value)
 
@@ -462,8 +462,8 @@ if(all(indicator %in% magnet_indicators) == FALSE){
         dplyr::rename(vdpb_value = value) %>%
         dplyr::select(-variable_name, -indicator)
 
-      vmpb_value <- rbind(magnet_base_support("VMPB", scenarios, base_year, path_basedata, ""),
-                          magnet_scenario_support("VMPB",scenarios, periods, path_update, "_Update", "har")) %>%
+      vmpb_value <- rbind(magnet_base_support("vmpb", scenarios, base_year, path_basedata, ""),
+                          magnet_scenario_support("vmpb",scenarios, periods, path_update, "_Update", "har")) %>%
         dplyr::rename(vmpb_value = value) %>%
         dplyr::select(-variable_name, -indicator)
 
