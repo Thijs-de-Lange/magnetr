@@ -341,8 +341,8 @@ magnet_indicator <- function(indicator, scenarios, periods, base_year, path_proj
 
 
 if(all(indicator %in% magnet_indicators) == FALSE){
-  stop("typo in indicator: function support the indicators 'population', 'labour', 'nutrient_cons_pc' 'gdp' and 'endow_market_price'")
-  } else {
+  #stop("typo in indicator: function support the indicators 'population', 'labour', 'nutrient_cons_pc' 'gdp' and 'endow_market_price'")
+  #} else {
 
   if(indicator == "pop") {
     output <- rbind(magnet_base_support("pop", scenarios, base_year, path_basedata, ""),
