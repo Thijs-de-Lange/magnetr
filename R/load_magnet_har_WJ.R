@@ -45,6 +45,9 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
     cnamesnew <- gsub("TRAD_COMM\\.1","TRAD_COMM_2",cnamesnew)
     cnamesnew <- gsub("COMM\\.1","COMM_2",cnamesnew)
 
+    #Some headers use ENDWL_COMM instead of ENDWL and it drives me crazy
+    cnamesnew <- gsub("ENDWL_COMM","ENDWL",cnamesnew)
+
     colnames(d1_header) <- cnamesnew
 
     #using Value with capital V by default
@@ -63,6 +66,11 @@ magnet_write_har <- function(dflist, outfilename) {
   #The write har is sensitive to the order of the values related to the order of the dimensions and the code below tries to do that
 
   ar <- list()
+
+  if(is.data.frame(dflist)){ # If someone juts passing a single dataframe, make it work.
+    dflist <- list(NH01 = dflist)
+    warning("Seem you provided a single dataframe writing as header NHO1")
+  }
 
   for (h in names(dflist)) {
     df <- dflist[[h]]
@@ -83,18 +91,16 @@ magnet_write_har <- function(dflist, outfilename) {
       dimsizelist[[c]] <- length(unique(df[[c]]))
     }
 
-    dimnames <- names(dimlist)
-
     # This is to make sure that the dimension is correct (in case of missing values adds 0 with left_join0)
     outputdf <- expand.grid(dimlist) %>% left_join0(df)
 
     # By default we use "REG_2" for duplicate dimensions. For har file bring back to regular REG.
-    names(dimlist) <- replace(dimnames, dimnames == "REG_2", "REG")
-    names(dimlist) <- replace(dimnames, dimnames == "REG_3", "REG")
-    names(dimlist) <- replace(dimnames, dimnames == "CTRY_2", "CTRY")
-    names(dimlist) <- replace(dimnames, dimnames == "SAMAC_2", "SAMAC")
-    names(dimlist) <- replace(dimnames, dimnames == "COMM_2", "COMM")
-    names(dimlist) <- replace(dimnames, dimnames == "TRAD_COMM_2", "TRAD_COMM")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "REG_2", "REG")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "REG_3", "REG")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "CTRY_2", "CTRY")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "SAMAC_2", "SAMAC")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "COMM_2", "COMM")
+    names(dimlist) <- replace(names(dimlist), names(dimlist) == "TRAD_COMM_2", "TRAD_COMM")
 
     ar[[h]] <- array(
       outputdf$Value,
@@ -139,7 +145,6 @@ magnet_get_scenarioinfo <- function(maindir) {
     modelsettings <- gsub("- ","",str_trim(answertxt[13,]))
   }
 
-  scennamesall = data.frame()
 
   scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
@@ -147,47 +152,63 @@ magnet_get_scenarioinfo <- function(maindir) {
   scen$files <- rownames(scen)
   scen$Scenario <- dirname(gsub(".*/4_MAGNET/Scenarios/","",rownames(scen)))
   scen$Maindir <- gsub("/4_MAGNET/Scenarios/.*","",rownames(scen))
-
   scen <- select(scen, c(Scenario,Maindir)) %>% unique()
   rownames(scen) <- NULL
+  scen <- scen %>% mutate(scentextfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
+    subset(file.exists(scentextfile))
 
-  scennamesall <- rbind(scennamesall,scen)
+  scennamesall <- scen
 
-  # scentxt <- read.delim(scenfile,  header = FALSE)
-  # colnames(scentxt) <- "Settings"
-  # scentxt$Section <- scentxt$Settings
-  # for (i in 1:length(scentxt$Settings)) {
-  #   t <- scentxt$Settings[i]
-  #   hdr <- TRUE
-  #   if (substr(t, 1, 3) == "   ") {
-  #     hdr <- FALSE
-  #   }
-  #   if(hdr){
-  #     hdrtxt = t
-  #   }
-  #   scentxt$Section[i] <- hdrtxt
-  # }
-  # basedata <- normalizePath(file.path(maindir,
-  #             subset(scentxt, Section == "Base data file" & Settings != "Base data file")$Settings %>% str_trim()))
-  # periods <- subset(scentxt, grepl("Period",Section)) %>% rename(Period = Section)
-  #
-  # periods$Question <- ""
-  # periods$Answer <- ""
-  # for (i in 1:length(periods$Settings)) {
-  #   t <- periods$Settings[i]
-  #   answertxt = ""
-  #   hdr <- TRUE
-  #   if (grepl(" - ",t)) {
-  #     hdr <- FALSE
-  #     answertxt = t
-  #   }
-  #   if(hdr){
-  #     hdrtxt = t
-  #   }
-  #   periods$Question[i] <- str_trim(hdrtxt)
-  #   periods$Answer[i] <- gsub("- ","",str_trim(answertxt))
-  # }
-  # periods <- subset(periods,Answer != "")
+  scentextfile <- scen$scentextfile[1]
+  scentxt <- read.delim(scentextfile,  header = FALSE)
+  colnames(scentxt) <- "Settings"
+  scentxt$Section <- scentxt$Settings
+  for (i in 1:length(scentxt$Settings)) {
+    t <- scentxt$Settings[i]
+    hdr <- TRUE
+    if (substr(t, 1, 3) == "   ") {
+      hdr <- FALSE
+    }
+    if(hdr){
+      hdrtxt = t
+    }
+    scentxt$Section[i] <- hdrtxt
+  }
+  basedata <- normalizePath(file.path(maindir,
+              subset(scentxt, Section == "Base data file" & Settings != "Base data file")$Settings %>% str_trim()))
+  periods <- subset(scentxt, grepl("Period",Section)) %>% rename(Period = Section)
+
+  periods$Question <- ""
+  periods$Answer <- ""
+  hdrtxt = ""
+  answertxt = ""
+  for (i in 1:length(periods$Settings)) {
+    t <- periods$Settings[i]
+    answertxt = ""
+    hdr <- TRUE
+    if (grepl(" - ",t)) {
+      hdr <- FALSE
+      answertxt = t
+    }
+    if(hdr){
+      hdrtxt = t
+    }
+    periods$Question[i] <- str_trim(hdrtxt)
+    periods$Answer[i] <- gsub("- ","",str_trim(answertxt))
+  }
+  periods2 <- subset(periods,Answer != "") %>% select(-Settings) %>%
+     mutate(fileext = tolower(tools::file_ext(Answer))) %>% subset(fileext != "") %>%
+     mutate(folder = case_when(Question == "Closure file" ~ "CommandFiles/Closures",
+                               Question == "Shocks file" ~ "CommandFiles/Shocks",
+                               Question == "Solution method" ~ "CommandFiles/SolutionMethods",
+                               Question == "Sets for shocks" ~ "CommandFiles/PolicySets",
+                               Question == "Program sets file" ~ "BaseData/Sets",
+                               Question == "Parameter file" ~ "BaseData/Par",
+                               Question == "Model parameter files" ~ "BaseData/ModPar",
+                               Question == "Shock data file" ~ "Shocks",
+                               Question == "Shock program" ~ "CodeShock",
+                               Question == "GTAP executable" ~ "CodeMainProgram")) %>%
+     mutate(file = file.path(maindir, "4_MAGNET", folder,Answer))
 
   scenariosinfo <- scennamesall %>%
     mutate(answerfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
@@ -229,14 +250,15 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
   years <- unlist(str_split(period, "-"))
 
   df <- addyearandscen(df, years[2], scenname)
+
   return(df)
 }
 
-addyearandscen <- function(df, year, scenario){
+addyearandscen <- function(df, year, scenname){
   for (n in names(df)){
-    if(nrow(df[[n]]>0)){ # this is to catch empty headers, simpmly removing now
+    if(nrow(df[[n]])>0){ # this is to catch empty headers, simply removing now
       df[[n]]$Year <- year
-      df[[n]]$Scenario <- scenario
+      df[[n]]$Scenario <- scenname
       df[[n]] <- df[[n]] %>% relocate(Value, .after = last_col())  # this moves Value to the final column
     } else {
       df[[n]] <- NULL
@@ -402,12 +424,37 @@ mergescendata <- function(df1, df2) {
           # if names are not the same assume that names of df1 are valid
           df2_h <- setNames(df2_h, names(df1_h))
         }
-        df1[[m]][[h]] <- rbind(df1_h,df2_h)
+        if(!identical(names(df1_h), names(df2_h)) & (ncol(df1_h) != ncol(df2_h))) {
+          # add ENDWL in case it's missing, this is for my new AEZ version where some headers have ENDWL added as header.
+          if("ENDWL" %in% names(df1_h) & !("ENDWL" %in% names(df2_h))){
+            df2_h$ENDWL <- "Land"
+          } else if ("ENDWL" %in% names(df2_h) & !("ENDWL" %in% names(df1_h))) {
+            df1_h$ENDWL <- "Land"
+          }
+        }
+        if(identical(names(df1_h), names(df2_h))) {
+          df1[[m]][[h]] <- rbind(df1_h,df2_h)
+        } else {
+          warning(paste("Headers of",h,"in",m,"do not match"))
+        }
       }
     }
   }
 
   return(df1)
+}
+
+removescendata <- function(dflist, scen ) {
+  # removes scenarios from all dfs in list, can be usefull sometimes
+  #in usal magnet data set up this should be Update, Update_view, Update_tax, and Solution as names
+  mainnames <- names(dflist)
+  for (m in mainnames){
+    headers <- names(dflist[[m]])
+    for(h in headers){
+      dflist[[m]][[h]]  <- dflist[[m]][[h]] %>% subset(Scenario != scen)
+    }
+  }
+  return(dflist)
 }
 
 ### Scenario data cleaning and writing functions ----
@@ -435,8 +482,11 @@ remove_zero_entries <- function(df){
 }
 
 write_scendata_csv <- function(df, dir = "."){
+
+
   #this just writes individual headers out into specific csv files in folders for Update, Update_view, etcetera.
   mainnames <- names(df)
+  allouts <- list()
   for (m in mainnames){
     headers <- names(df[[m]])
     fp <- file.path(dir, m)
@@ -444,7 +494,19 @@ write_scendata_csv <- function(df, dir = "."){
     for(h in headers){
       outcsv <- df[[m]][[h]]
       write.csv(outcsv, file.path(fp, paste0(h,".csv")), row.names = FALSE)
+      dim = paste(str_sort(toupper(colnames(select(outcsv,-Value)))),collapse = "_")
+      allouts[[dim]][[h]] <- outcsv
     }
+  }
+  for (m in names(allouts)){
+    headers <- names(allouts[[m]])
+    fp <- file.path(dir,"SameDims")
+    if (!dir.exists(fp)) dir.create(fp, recursive = TRUE)
+    outcsv <- data.frame()
+    for(h in headers){
+      outcsv <- rbind(outcsv, allouts[[m]][[h]])
+    }
+    write.csv(outcsv, file.path(fp, paste0(m,".csv")), row.names = FALSE)
   }
 }
 
@@ -512,7 +574,20 @@ left_join0 <- function(x, y, fillwith = 0){
   z <- left_join(x, y)
   new_cols <- c(setdiff(names(z), names(x)))
   for (n in new_cols){
-    z[[n]] <- ifelse(is.na(z[[n]]), fillwith, z[[n]])
+    if(is.numeric(z[[n]])){
+      z[[n]] <- ifelse(is.na(z[[n]]), fillwith, z[[n]])
+    }
+  }
+  z
+}
+
+full_join0 <- function(x, y, fillwith = 0){
+  #This does left_join and fillls missing values with zeros.
+  z <- full_join(x, y)
+  for (n in colnames(z)){
+    if(is.numeric(z[[n]])){
+      z[[n]] <- ifelse(is.na(z[[n]]), fillwith, z[[n]])
+    }
   }
   z
 }
@@ -548,3 +623,73 @@ find_any_header <- function(df_list, coef, indexsol = TRUE) {
     }
   }
 }
+
+getusefulsets <- function(modelsetfile) {
+  msets <- magnet_read_all_headers(modelsetfile)
+
+  setsmap <- rbind(#msets$CRPS %>% mutate(Header = "CRPS", Description = "Crops"),
+                   #msets$LVSK %>% mutate(Header = "LVSK", Description = "Livestock"),
+                   msets$ANI2 %>% mutate(Header = "ANI2", Description = "Livestock using land"),
+                   msets$AGRI %>% mutate(Header = "AGRI", Description = "Agriculture"),
+                   # msets$LAND %>% mutate(Header = "LAND", Description = "Land endowments"),
+                   # msets$UNSK %>% mutate(Header = "UNSK", Description = "Unskilled labour"),
+                   # msets$SKLB %>% mutate(Header = "SKLB", Description = "Skilled labour"),
+                   # msets$ENDC %>% mutate(Header = "ENDC", Description = "Capital endowments"),
+                   msets$SERV %>% mutate(Header = "SERV", Description = "Services"),
+                   msets$INDS %>% mutate(Header = "INDS", Description = "Industry"),
+                   msets$FOOD %>% mutate(Header = "FOOD", Description = "Food commodities"),
+                   msets$PRAG %>% mutate(Header = "PRAG", Description = "Primary agri food"),
+                   msets$PRFD %>% mutate(Header = "PRFD", Description = "Processed food"),
+                   msets$FDSV %>% mutate(Header = "FDSV", Description = "Food services"),
+                   msets$NONF %>% mutate(Header = "NONF", Description = "Non food commodities"))
+
+  return(setsmap)
+}
+
+collapse_df_list <- function(dflist, newcol = "Variable"){
+  #Collapses a single level df list.
+  # it wil try to find all the columnnames, so be carefull
+  hdrs <- c()
+  for (header in names(dflist)) {
+    hdrs <- unique(c(hdrs,colnames(dflist[[header]])))
+  }
+
+  fncols <- function(df, cnames) {
+    for (cname in cnames){
+      add <-cname[!cname%in%names(df)]
+
+      if(length(add)!=0) df[add] <- ""
+    }
+
+    return(df)
+  }
+
+  newdf <- data.frame()
+  # This just uses the header as the Value col name, sometimes useful.
+  for (header in names(dflist)) {
+    d1_header <- dflist[[header]]
+    d1_header[[newcol]] <- header #adding new column
+    d1_header <- fncols(d1_header, hdrs) #adding missing columns with empty values
+    newdf <- rbind(newdf, d1_header)
+  }
+
+  newdf <-newdf %>% select(-Value,Value) #This moves value to last column, just in case
+
+  return(newdf)
+}
+
+removescendata <- function(dflist, scen) {
+  # removes scenarios from all dfs in list
+  #in usal magnet data set up this should be Update, Update_view, Update_tax, and Solution as names
+  mainnames <- names(dflist)
+
+  #probably a smarter way to this
+  for (m in mainnames){
+    headers <- names(dflist[[m]])
+    for(h in headers){
+      dflist[[m]][[h]]  <- dflist[[m]][[h]] %>% subset(Scenario != scen)
+    }
+  }
+  return(dflist)
+}
+
