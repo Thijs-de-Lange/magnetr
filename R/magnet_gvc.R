@@ -362,7 +362,7 @@ make_pefood <- function(gvcdata_nutrients){
     group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
   PEFOOD <- with(PEFOOD, PEFOOD[order(HFOOD,PRIM_AGRI),])
 
-  PEFOODTOT <-   PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlow) %>%
+  PEFOODTOT <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlow) %>%
     group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
   PEFOODTOT <- with(PEFOODTOT, PEFOODTOT[order(HFOOD,PRIM_AGRI),])
 
