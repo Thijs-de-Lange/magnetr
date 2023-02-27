@@ -27,7 +27,7 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0.1, thresholdmore 
     subset(Value > thresholdmore)
 
   # F_DQ(c,a,r) # Final demand for domestic commodities by agent (mil USD) #;
-  F_DQ <- rbind(bdata$DFNH %>% mutate(AGENT = "hh"),
+  F_DQ <- bind_rows(bdata$DFNH %>% mutate(AGENT = "hh"),
                 bdata$DFNG %>% mutate(AGENT = "govt"),
                 bdata$DFNI %>% mutate(AGENT = "CGDS"))%>%
     subset(Value > thresholdmore)
@@ -117,11 +117,11 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0.1, thresholdmore 
     subset(Value > thresholdmore)
 
   # ! Intermediates!
-  I_q <- rbind(subset(I_MQ2, REG != REG_2), mutate(I_DQ2, REG_2 = REG)) %>%
+  I_q <- bind_rows(subset(I_MQ2, REG != REG_2), mutate(I_DQ2, REG_2 = REG)) %>%
     subset(Value > thresholdmore)
 
   # ! Final demand!
-  F_q <- rbind(subset(F_MQ2, REG != REG_2), mutate(F_DQ2, REG_2 = REG))%>%
+  F_q <- bind_rows(subset(F_MQ2, REG != REG_2), mutate(F_DQ2, REG_2 = REG))%>%
     subset(Value > thresholdmore)
 
   #IO coeff.(qtity): use of i from region s when producing comm. p in region d#;
@@ -254,7 +254,7 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
 
   #FBDG header PEQ_FBDG geeft mapping.
 
-  MBALIndicators <- rbind(qprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant)
+  MBALIndicators <- bind_rows(qprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant)
 
   if(typeof(aggsets) == "list") {
     MBALIndicators$COMM <- plyr::mapvalues(MBALIndicators$COMM, aggsets$Value, aggsets$Header)
@@ -372,7 +372,7 @@ make_pefood <- function(gvcdata_nutrients){
   return(pefoodout)
 }
 
-getMBALflowsValueBased <- function(sets, bdata, threshold = 0.1, thresholdmore = 0) {
+sgetMBALflowsValueBased <- function(sets, bdata, threshold = 0.1, thresholdmore = 0) {
   # THis is a copy of the other function, but not so well updated, it does the same thing but than based on values, not volume
   # Use at own risk! Doesn't work right now, needs some uncommenting and stuff.
   regs <- sets$REG$Value
@@ -405,7 +405,7 @@ getMBALflowsValueBased <- function(sets, bdata, threshold = 0.1, thresholdmore =
   #   group_by(COMM, COMM_2, REG) %>% summarize(Value = sum(Value))
   #
   # # F_D(c,a,r) # Final demand for domestic commodities by agent (mil USD) #;
-  # F_D <- rbind(bdata$VDPB %>% mutate(AGENT = "hh"),
+  # F_D <- bind_rows(bdata$VDPB %>% mutate(AGENT = "hh"),
   #              bdata$VDGB %>% mutate(AGENT = "govt"),
   #              bdata$VDIB %>% mutate(AGENT = "CGDS"))
   # #
