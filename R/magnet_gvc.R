@@ -319,8 +319,8 @@ MakeAggForMBAL <- function(bdata, aggsets, addmargs = TRUE) {
 generate_ncmf <- function(gvcdata, bdata){
 
   #This calcualtes the correction factor from primary produciton quantities (NVOM) to supply values (FSNU) according to the food balance sheets
-  FSNU <- bdata$FSNU %>% rename(REG_3 = REG, COMM = PRIM_AGRI, FSNUval = Value) %>% subset(NUTRIENTS != "lanU")
-  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) %>% subset(NUTRIENTS != "lanU")
+  FSNU <- bdata$FSNU %>% rename(REG_3 = REG, COMM = PRIM_AGRI, FSNUval = Value) #%>% subset(NUTRIENTS != "lanU")
+  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
 
   ncmf <-  gvcdata %>%
     left_join(NVOM) %>% mutate(VirtualFlow = NVOMval * ProdShare) %>% subset(VirtualFlow > 0) %>%
@@ -346,7 +346,7 @@ make_food_gvc <- function(gvcdata, sets){
 }
 
 make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
-  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) %>% subset(NUTRIENTS != "lanU")
+  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
   population <- bdata$POP %>% rename(REG_3 = REG, POP = Value)
   gvcdata_nutrients <- gvcdata_food  %>%
     left_join(NVOM) %>% left_join(NCMF)  %>%
