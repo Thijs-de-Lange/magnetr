@@ -275,30 +275,28 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
   transco2eq <- bdata$QEMI %>% subset(FUELUSER == "trans") %>% group_by(REG) %>% summarize(TransCO2eq = sum(Value)) %>% ungroup()
   transshr <- bdata$VDFB %>% subset(COMM == "trans") %>% group_by(REG) %>% mutate(Value = Value/sum(Value))
   transco2eq <- left_join(transshr, transco2eq) %>% mutate(TransCO2eq = TransCO2eq * Value) %>% select(-Value) %>%
-    select(COMM = ACTS, REG, TransCO2eq)
+    select(COMM = ACTS, REG, Value = TransCO2eq) %>%
+    mutate(Indicator = "TransCO2eq", Unit = "Mton CO2eq")
 
   MBALIndicators <- bind_rows(qprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant,transco2eq)
 
-  # this is not working, I don't understand how to load the external data
-  # fertfile <- system.file("extdata", "FERTDEM.HAR", package="my_package")
-  # fertfile <- file.path("inst","extdata","FERTDEM.HAR")
-  # fertdem <- magnet_read_all_headers(fertfile)$FCTN #fertilzer use in tonnes, but by gtap agg.
-  # fertdem <- rename(fertdem, DCOMM = AGRI_COMM)
-  # commmap <-  getcommapping(sets)
-  # regmap <-  getregmapping(sets)
-  #
-  # fertdem2 <- makeagg_singledf(fertdem, select(commmap, DCOMM,COMM)) %>% makeagg_singledf(select(regmap, DREG,REG)) %>%
-  #   rename(COMM = DCOMM, REG = DREG) %>% ungroup()
-  #
-  # fert_p <- subset(fertdem2, FERTT == "fert_p") %>% select(-FERTT) %>% mutate(Indicator = "Fert_P", Unit = "ton P2O5")
-  # fert_n <- subset(fertdem2, FERTT == "fert_n") %>% select(-FERTT) %>% mutate(Indicator = "Fert_N", Unit = "ton N")
-  #
-  # landcomm <- unique(subset(ldem, Value > 0)$COMM)
-  # pest <- rbind(bdata$VDFB, bdata$VMFB) %>%
-  #   subset(COMM %in% c("chm", "chem", "chmbphplas") & ACTS %in% landcomm) %>% select(-COMM) %>% rename(COMM = ACTS) %>%
-  #   group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>% mutate(Indicator = "Pest_$", Unit = "dollar")
+  fertfile <- system.file("extdata", "FERTDEM.HAR", package="magnetr")
+  fertdem <- magnet_read_all_headers(fertfile)$FCTN #fertilzer use in tonnes, but by gtap agg.
+  fertdem <- rename(fertdem, DCOMM = AGRI_COMM)
+  commmap <-  getcommapping(sets)
+  regmap <-  getregmapping(sets)
 
-  # MBALIndicators <- bind_rows(MBALIndicators, fert_n,fert_p,pest)
+  fertdem2 <- makeagg_singledf(fertdem, select(commmap, DCOMM,COMM)) %>% makeagg_singledf(select(regmap, DREG,REG)) %>%
+    rename(COMM = DCOMM, REG = DREG) %>% ungroup()
+
+  fert_p <- subset(fertdem2, FERTT == "fert_p") %>% select(-FERTT) %>% mutate(Indicator = "Fert_P", Unit = "ton P2O5")
+  fert_n <- subset(fertdem2, FERTT == "fert_n") %>% select(-FERTT) %>% mutate(Indicator = "Fert_N", Unit = "ton N")
+
+  landcomm <- unique(subset(ldem, Value > 0)$COMM)
+  pest <- rbind(bdata$VDFB, bdata$VMFB) %>%
+    subset(COMM %in% c("chm", "chem", "chmbphplas") & ACTS %in% landcomm) %>% select(-COMM) %>% rename(COMM = ACTS) %>%
+    group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>% mutate(Indicator = "Pest_$", Unit = "dollar")
+  MBALIndicators <- bind_rows(MBALIndicators, fert_n,fert_p,pest)
 
   if(typeof(aggsets) == "list") {
     MBALIndicators$COMM <- plyr::mapvalues(MBALIndicators$COMM, aggsets$Value, aggsets$Header)
