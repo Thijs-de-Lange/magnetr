@@ -226,6 +226,18 @@ magnet_get_scenarioinfo <- function(maindir) {
   return(scenariosinfo)
 }
 
+magnet_get_years <- function(scenariosinfo){
+  years <- c()
+  for (s in 1:nrow(scenariosinfo)){
+    periods <- scenariosinfo$Periods[s]
+    ys <- unique(unlist(str_split(periods, "-|;")))
+    years <- unique(c(years, ys))
+  }
+  years <- sort(years)
+
+  return(years)
+}
+
 ### Scenario reader functions -----
 #' @export
 readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef = TRUE) {
@@ -530,6 +542,22 @@ makeaggs <- function(dflist, mapping) {
   return(dflist)
 }
 
+makeagg_singledf <- function(df1, mapping) {
+
+  mapfrom <- colnames(mapping)[1]
+  mapto <- colnames(mapping)[2]
+
+  if(mapfrom %in% colnames(df1) & "Value" %in% colnames(df1)) {
+    if(!(class(df1$Value) %in% c("character"))){ # just excluding potential funny stuff
+      df1[[mapfrom]] <- plyr::mapvalues(df1[[mapfrom]],from=mapping[[mapfrom]],to=mapping[[mapto]],warn_missing = FALSE)
+      df1 <- df1 %>% group_by(across(-Value)) %>% summarise(Value = sum(Value))
+      df1 <- unique(df1)
+    }
+  }
+
+  return(df1)
+}
+
 addworld <- function(dflist) {
 
   for (m in names(dflist)){
@@ -539,16 +567,32 @@ addworld <- function(dflist) {
       if ("REG" %in% colnames(df1)){
         dfwld <- select(df1, -REG) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup() %>%
           mutate(REG = "World")
-        df1 <- bind_rows(df1, dfwld,dfeur)
+        df1 <- bind_rows(df1, dfwld)
       }
       if ("REG_2" %in% colnames(df1)){
         dfwld <- select(df1, -REG_2) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup() %>%
           mutate(REG_2 = "World")
-        df1 <- bind_rows(df1, dfwld,dfeur)
+        df1 <- bind_rows(df1, dfwld)
       }
     }
   }
   return(dfLIST)
+}
+
+add_total_singledf <- function(df, colname = "REG", total = "Total", ignoreerror = TRUE) {
+  #Quietly returns unaltered df if the colname isn't present.
+  df1 <- ungroup(df)
+  # to be smartified, both for situations with REG + REG_2 to and whether to include internal trade
+
+  if(ignoreerror){
+    if(!colname %in% colnames(df1)){return(df)}
+  }
+  dftot <- select(df1, -one_of(colname)) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup()
+  dftot[[colname]] <- total
+  df1 <- bind_rows(df1, dftot)
+
+
+  return(df1)
 }
 
 ### Some simple helper functions ------
@@ -645,6 +689,72 @@ getusefulsets <- function(modelsetfile) {
 
   return(setsmap)
 }
+
+getcommapping <- function(sets) {
+
+  modelsetdata <- magnet_read_all_headers(setfile) %>% set_header_as_valcolname()
+  if(!("COMM" %in% names(modelsetdata))){modelsetdata[["COMM"]] <-modelsetdata[["H2"]] %>% rename(COMM = H2)}
+  if(!("COMO" %in% names(modelsetdata))){modelsetdata[["COMO"]] <-modelsetdata[["H2O"]]  %>% rename(COMO = H2O)}
+  comm2dcomm <- cbind(modelsetdata[["MAPT"]],modelsetdata[["COMO"]])
+  dcomm2gcomm <- cbind(modelsetdata[["COMO"]],modelsetdata[["MTDG"]])
+
+  names <- cbind(modelsetdata[["COMM"]],modelsetdata[["H2L"]]) %>%
+    rename(MAPT = COMM, Descr = H2L) %>% mutate(nr = row_number())
+
+  allmap <- right_join(comm2dcomm,dcomm2gcomm) %>%
+    left_join(names) %>%
+    select(nr, COMM = MAPT, DCOMM = COMO, GCOMM = MTDG, Descr) %>%
+    arrange(nr) %>% select(-nr)
+
+  return(allmap)
+}
+
+getsectormapping <- function(sets) {
+
+  modelsetdata <- sets %>% set_header_as_valcolname()
+
+  acts2dacts <- cbind(modelsetdata[["MAPS"]],modelsetdata[["ACTO"]])
+  dacts2gacts <- cbind(modelsetdata[["ACTO"]],modelsetdata[["MTRS"]])
+
+  allmap <- right_join(acts2dacts,dacts2gacts)
+
+  select(ACTS = MAPS, DACTS = ACTO, GACTS = MTRS)
+
+  return(allmap)
+}
+
+getmendwmapping <- function(sets) {
+
+  modelsetdata <- sets %>% set_header_as_valcolname()
+  if(!("ENDO" %in% names(modelsetdata))){modelsetdata[["ENDO"]] <-modelsetdata[["H6"]]  %>% rename(ENDO = H6)}
+  endw2dendw <- cbind(modelsetdata$MAPF,modelsetdata$ENDO) %>% na.omit()
+
+  allmap <- endw2dendw%>%
+    select(ENDW = MAPF, DENDW = ENDO)
+
+  return(allmap)
+}
+
+getregmapping <- function(sets) {
+
+  modelsetdata <- sets %>% set_header_as_valcolname()
+
+  if(!("REGO" %in% names(modelsetdata))){modelsetdata[["REGO"]] <-modelsetdata[["H1O"]]  %>% rename(REGO = H1O)}
+  if(!("REG" %in% names(modelsetdata))){modelsetdata[["REG"]] <-modelsetdata[["H1"]]  %>% rename(REG = H1)}
+
+  reg2dreg <- cbind(modelsetdata$MAPR,modelsetdata$REGO)
+
+  names <-  cbind(modelsetdata$REG, modelsetdata$H1L) %>% na.omit() %>%
+    rename(MAPR = REG, Descr = H1L)
+
+  allmap <- reg2dreg %>%
+    left_join(names) %>%
+    select(REG = MAPR, DREG = REGO, Descr) %>% unique() %>% na.omit()
+
+  return(allmap)
+}
+
+
 
 collapse_df_list <- function(dflist, newcol = "Variable"){
   #Collapses a single level df list.
