@@ -59,17 +59,26 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
   return(dflist_out)
 }
 
+magnet_prepdf_for_write_har <- function(df, dimlist) {
+  #prepares the array for writing in order of the dimlist
+
+  # This is to make sure that the dimension is correct (in case of missing values adds 0 with left_join0)
+  outputdf <- expand.grid(dimlist) %>% left_join0(df)
+
+  return(outputdf)
+}
+
 #' @export
 magnet_write_har <- function(dflist, outfilename) {
   #Needs some testing, but takes a list of named dataframes where the names should be the
   #final HEADER names that will be in the output hr file
   #The write har is sensitive to the order of the values related to the order of the dimensions and the code below tries to do that
-
+  # provoding the exact dimlist dimensions will then use those.
   ar <- list()
 
   if(is.data.frame(dflist)){ # If someone juts passing a single dataframe, make it work.
     dflist <- list(NH01 = dflist)
-    warning("Seem you provided a single dataframe writing as header NHO1")
+    warning("Seem you provided a single dataframe. Writing as header NHO1")
   }
 
   for (h in names(dflist)) {
@@ -94,7 +103,8 @@ magnet_write_har <- function(dflist, outfilename) {
     # This is to make sure that the dimension is correct (in case of missing values adds 0 with left_join0)
     outputdf <- expand.grid(dimlist) %>% left_join0(df)
 
-    # By default we use "REG_2" for duplicate dimensions. For har file bring back to regular REG.
+    # By default we use "REG_2" for duplicate dimensions as our datafram cant handle that.
+    # For har file bring back to regular REG.
     names(dimlist) <- replace(names(dimlist), names(dimlist) == "REG_2", "REG")
     names(dimlist) <- replace(names(dimlist), names(dimlist) == "REG_3", "REG")
     names(dimlist) <- replace(names(dimlist), names(dimlist) == "CTRY_2", "CTRY")
@@ -590,8 +600,22 @@ add_total_singledf <- function(df, colname = "REG", total = "Total", ignoreerror
   dftot <- select(df1, -one_of(colname)) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup()
   dftot[[colname]] <- total
   df1 <- bind_rows(df1, dftot)
+  return(df1)
+}
 
+add_manualagg_singledf <- function(df, filterlist, colname, total,ignoreerror = TRUE) {
+  # filters list of colname and makes and agg, handy add eu in a single step for example
+  #Quietly returns unaltered df if the colname isn't present.
+  df1 <- ungroup(df)
+  # to be smartified, both for situations with REG + REG_2 to and whether to include internal trade
 
+  if(ignoreerror){
+    if(!colname %in% colnames(df1)){return(df)}
+  }
+  df1 <- df1[df1[[colname]] %in% filterlist, ]
+  dftot <- select(df1, -one_of(colname)) %>% group_by(across(c(-Value))) %>% summarise(Value = sum(Value)) %>% ungroup()
+  dftot[[colname]] <- total
+  df1 <- bind_rows(df1, dftot)
   return(df1)
 }
 

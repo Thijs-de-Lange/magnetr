@@ -1,5 +1,5 @@
 getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE) {
-  #threshold applied all matrices in the code that are not shares or coefficients
+  #threshold applied to a couple of bigger matrices in the code that are not shares or coefficients
   # useloop will try to break some joins down into smaller loops, for memory use efficiency. But is very very slow
 
   regs <- unique(bdata$PRDQ$REG)
@@ -20,20 +20,17 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
     mutate(Value = ifelse(is.nan(Value), 0, Value))
 
   # Prodiction
-  Q_q <- bdata$PRDQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>%
-    subset(Value > threshold)
+  Q_q <- bdata$PRDQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
 
   # I_DQ(c,p,r) # Intermediate demand for domestic commodities (mil USD) #;
   I_DQ <-  full_join0(rename(COMM_SHR, p = COMM), rename(bdata$DINQ, V1 = Value, c = COMM)) %>% mutate(Value = V1 * Value) %>%
     group_by(c,p,REG) %>% summarize(Value = sum(Value)) %>%
-    rename(COMM = c, COMM_2 = p) %>%
-    subset(Value > threshold)
+    rename(COMM = c, COMM_2 = p)
 
   # F_DQ(c,a,r) # Final demand for domestic commodities by agent (mil USD) #;
   F_DQ <- bind_rows(bdata$DFNH %>% mutate(AGENT = "hh"),
                 bdata$DFNG %>% mutate(AGENT = "govt"),
-                bdata$DFNI %>% mutate(AGENT = "CGDS"))%>%
-    subset(Value > threshold)
+                bdata$DFNI %>% mutate(AGENT = "CGDS"))
 
   # Coefficient (all,c,COMM)(all,a,MDEMCAT)(all,r,REG)
   # MDEMAQ(c,a,r) # Quantity of agent's demand for imports by region r #;
@@ -45,12 +42,10 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
                       bdata$MFNH %>% mutate(MDEMCAT = "hh"),
                       bdata$MFNG %>% mutate(MDEMCAT = "govt"),
                       bdata$MFNI %>% mutate(MDEMCAT = "CGDS")) %>%
-    mutate(Value = ifelse(Value <0, 0, Value))%>%
-    subset(Value > threshold)
+    mutate(Value = ifelse(Value <0, 0, Value))
 
   # MDEMQT(c,r) # Quantity total demand for imports by region r #;
-  MDEMQT <- MDEMAQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>%
-    subset(Value > threshold)
+  MDEMQT <- MDEMAQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
 
   # MAQSHR(c,a,r) # Agent's quantity shares in total imports by region r #;
   MAQSHR <- full_join0(MDEMAQ, rename(MDEMQT, V1 = Value)) %>%
@@ -68,13 +63,12 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
     subset(Value > threshold)
 
   # # Quantity final demand for imported commodities from s in d (mil USD) #;
-  F_MQ <- MAGNTQ %>% subset(MDEMCAT %in% agents) %>% rename(AGENT = MDEMCAT) %>%
-    subset(Value > threshold)
+  F_MQ <- MAGNTQ %>% subset(MDEMCAT %in% agents) %>% rename(AGENT = MDEMCAT)
 
   # TRMMAGNTQ(m,c,a,s,d) # Agent's transport margins by region s #;
   TRMMAGNTQ <- full_join0(rename(MAQSHR, REG_2 = REG), rename(bdata$DTRN, V1 = Value)) %>%
     mutate(Value = V1 * Value) %>%
-    select(MARG, COMM, MDEMCAT, REG, REG_2, Value)%>%
+    select(MARG, COMM, MDEMCAT, REG, REG_2, Value) %>%
     subset(Value > threshold)
 
   # !Compute bilateral exports of transport services based on regional contributions to global pool!
@@ -82,15 +76,34 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
   shr_TRANSS_q <- bdata$STRN %>% group_by(MARG) %>% mutate(Value = Value/sum(Value))
 
   # # Linking transporter country (t) to demand for transport by destination d #;
-  TRANSPRTQ <- left_join(rename(shr_TRANSS_q, t = REG), rename(TRMMAGNTQ, s = REG, REG = REG_2, V1 = Value)) %>%
-    mutate(Value = Value * V1) %>% group_by(MARG,MDEMCAT,REG,t) %>% summarize(Value = sum(Value)) %>%
-    select(MARG,MDEMCAT,REG,REG_2 = t,Value) %>%
-    subset(Value > threshold)
+  if(useloop){
+    TRANSPRTQ <- data.frame()
+
+    looplist <- as.character(unique(select(ungroup(shr_TRANSS_q), REG))$REG)
+    print("starting loop over REG column to make TRANSPRTQ matrix, this can take some time.")
+    for (n in 1:length(looplist)) {
+      print(paste("now at region",n,"of",length(looplist)))
+      reg <- looplist[n]
+      shr_TRANSS_q_part <- subset(shr_TRANSS_q, REG == reg)
+      TRANSPRTQ_part <- left_join(rename(shr_TRANSS_q_part, t = REG), rename(TRMMAGNTQ, s = REG, REG = REG_2, V1 = Value)) %>%
+        mutate(Value = Value * V1) %>% group_by(MARG,MDEMCAT,REG,t) %>% summarize(Value = sum(Value)) %>%
+        select(MARG,MDEMCAT,REG,REG_2 = t,Value) %>%
+        subset(Value > threshold)
+      TRANSPRTQ <- bind_rows(TRANSPRTQ, TRANSPRTQ_part)
+    }
+
+
+  } else {
+    TRANSPRTQ <- left_join(rename(shr_TRANSS_q, t = REG), rename(TRMMAGNTQ, s = REG, REG = REG_2, V1 = Value)) %>%
+      mutate(Value = Value * V1) %>% group_by(MARG,MDEMCAT,REG,t) %>% summarize(Value = sum(Value)) %>%
+      select(MARG,MDEMCAT,REG,REG_2 = t,Value) %>%
+      subset(Value > threshold)
+  }
+
 
   # # Qunatity domestic transport services for trade from regions s (own trade 0)#;
   dTRANSPRTQ <- TRANSPRTQ %>% mutate(Value = ifelse(REG == REG_2, Value, 0)) %>% subset(REG == REG_2) %>% select(-REG_2)
-  TRANSPRTQ <- TRANSPRTQ %>% mutate(Value = ifelse(REG == REG_2, 0, Value)) %>%
-    subset(Value > threshold)
+  TRANSPRTQ <- TRANSPRTQ %>% mutate(Value = ifelse(REG == REG_2, 0, Value))
 
   # ! Add the transport services (margins) from other services to imports by region!
   # I_MQ(m,p,t,d) = I_MQ(m,p,t,d) + TRANSPRTQ(m,p,d,t);
@@ -167,20 +180,24 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
   # region d how much final product c they demand from region s!
   # # Production i in p for final demand c in d from s by a, q-based (mil USD)#;
 
+  rm(aIO_q, COMM_SHR,bdata, F_MQ, F_MQ2, I_MQ, I_MQ2, idmatrix,
+     IO_q,MAGNTQ,MAQSHR,MDEMAQ,TRANSPRTQ,TRMMAGNTQ, X_q)
   if(useloop){
-    QFD_q_list <- data.frame()
+    QFD_q <- data.frame()
 
     looplist <- unique(select(ungroup(F_q), COMM_2, REG_2))
-
+    looplist <- unique(select(ungroup(F_q), REG_2))
+    print("starting loop over REG_2 column to make QFD_q matrix, this can take some time.")
     for (n in 1:nrow(looplist)) {
+      print(paste("now at row",n,"of",nrow(looplist)))
       reg2 <- looplist$REG_2[n]
-      comm2 <- looplist$COMM_2[n]
-      F_Q_part <- subset(F_q, COMM_2 == comm2, REG_2 = reg2)
-      LI_q_part <- subset(LI_q, COMM_2 == comm2, REG_2 = reg2)
+     # comm2 <- looplist$COMM_2[n]
+      F_Q_part <- subset(F_q, REG_2 == reg2)# & COMM_2 == comm2)
+      LI_q_part <- subset(LI_q, REG_2 == reg2)# & COMM_2 == comm2)
       QFD_q_part <- full_join(F_Q_part,LI_q_part) %>% mutate(Value = value * Value_F) %>% select(-value, -Value_F) %>%
         subset(Value > threshold) %>%
         select(COMM, REG, COMM_2, REG_2, AGENT, REG_3, Value)
-      QFD_q_list <- bind_rows(QFD_q_list,QFD_q_part)
+      QFD_q <- bind_rows(QFD_q,QFD_q_part)
     }
 
   } else {
@@ -244,6 +261,8 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
   qprod$COMM <- ifelse(qprod$COMM == "fishm","wfish",as.character(qprod$COMM))
   qprod$COMM <- ifelse(qprod$COMM == "pcr","pdr",as.character(qprod$COMM))
 
+  vprod <- bdata$PRDQ %>% group_by(COMM, REG) %>% summarize(Value = sum(Value)) %>%
+           mutate(Indicator = "Dollar Quantity", Unit = "mil USD")
 
   if("ENDWL_COMM" %in% colnames(bdata$LDEM)){
     bdata$LDEM <- rename(bdata$LDEM, ENDWL = ENDWL_COMM)
@@ -278,7 +297,7 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
     select(COMM = ACTS, REG, Value = TransCO2eq) %>%
     mutate(Indicator = "TransCO2eq", Unit = "Mton CO2eq")
 
-  MBALIndicators <- bind_rows(qprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant,transco2eq)
+  MBALIndicators <- bind_rows(qprod,vprod,ldem, wtvl, co2eq, ch4,n2o,cal,quant,transco2eq)
 
   fertfile <- system.file("extdata", "FERTDEM.HAR", package="magnetr")
   fertdem <- magnet_read_all_headers(fertfile)$FCTN #fertilzer use in tonnes, but by gtap agg.
