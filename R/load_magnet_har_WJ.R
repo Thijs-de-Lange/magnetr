@@ -236,6 +236,91 @@ magnet_get_scenarioinfo <- function(maindir) {
   return(scenariosinfo)
 }
 
+magnet_get_scenarioinfo_long <- function(maindir) {
+  #Creates a dataframe, long list, with usefull info of all scenarios with a log file present.
+  # Used as basis for other read functions
+
+  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
+  scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
+
+  scen$files <- rownames(scen)
+  scen$Scenario <- dirname(gsub(".*/4_MAGNET/Scenarios/","",rownames(scen)))
+  scen$Maindir <- gsub("/4_MAGNET/Scenarios/.*","",rownames(scen))
+  scen <- select(scen, c(Scenario,Maindir)) %>% unique()
+  rownames(scen) <- NULL
+  scen <- scen %>% mutate(scentextfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
+    subset(file.exists(scentextfile))
+
+
+  sceninfoall <- data.frame()
+  for(i in 1:nrow(scen)) {
+    scenname = scen$Scenario[i]
+    scentextfile <- scen$scentextfile[i]
+    scentxt <- read.delim(scentextfile,  header = FALSE)
+    colnames(scentxt) <- "Settings"
+    scentxt$Section <- scentxt$Settings
+    for (i in 1:length(scentxt$Settings)) {
+      t <- scentxt$Settings[i]
+      hdr <- TRUE
+      if (substr(t, 1, 3) == "   ") {
+        hdr <- FALSE
+      }
+      if(hdr){
+        hdrtxt = t
+      }
+      scentxt$Section[i] <- hdrtxt
+    }
+    basedata <- file.path(str_trim(subset(scentxt, Section == "Base data file" & Settings != "Base data file")$Settings))
+    baseinfo <- subset(scentxt, !grepl("Period",Section)) %>% rename(Period = Section)
+    sceninfo <- subset(scentxt, grepl("Period",Section)) %>% rename(Period = Section)
+    sceninfo <- scentxt %>% rename(Period = Section)
+
+    sceninfo$Question <- ""
+    sceninfo$Answer <- ""
+    hdrtxt = ""
+    answertxt = ""
+    for (i in 1:length(sceninfo$Settings)) {
+      t <- sceninfo$Settings[i]
+      answertxt = ""
+      hdr <- TRUE
+      if (grepl(" - ",t)) {
+        hdr <- FALSE
+        answertxt = t
+      }
+      if(hdr){
+        hdrtxt = t
+      }
+      sceninfo$Question[i] <- str_trim(hdrtxt)
+      sceninfo$Answer[i] <- gsub("- ","",str_trim(answertxt))
+    }
+    sceninfo <- sceninfo %>% mutate(Answer = ifelse(Period == "Base data file" & Question != 'Base data file',Question,Answer))
+    sceninfo <- sceninfo %>% mutate(Question = ifelse(Period == "Base data file" & Question != 'Base data file',"Base data file",Question))
+    # sceninfo <- sceninfo %>% mutate(Answer = ifelse(Period == "Scenario description" & Question != 'Scenario description',Question,Answer))
+    # sceninfo <- sceninfo %>% mutate(Answer = ifelse(Period == "Scenario name" & Question != 'Scenario name',Question,Answer))
+    #
+    sceninfo2 <- subset(sceninfo,Answer != "") %>% select(-Settings) %>%
+      mutate(fileext = tolower(tools::file_ext(Answer))) %>% subset(fileext != "") %>%
+      mutate(folder = case_when(Question == "Closure file" ~ "CommandFiles/Closures",
+                                Question == "Shocks file" ~ "CommandFiles/Shocks",
+                                Question == "Solution method" ~ "CommandFiles/SolutionMethods",
+                                Question == "Sets for shocks" ~ "CommandFiles/PolicySets",
+                                Question == "Program sets file" ~ "BaseData/Sets",
+                                Question == "Parameter file" ~ "BaseData/Par",
+                                Question == "Model parameter files" ~ "BaseData/ModPar",
+                                Question == "Shock data file" ~ "Shocks",
+                                Question == "Shock program" ~ "CodeShock",
+                                Question == "GTAP executable" ~ "CodeMainProgram")) %>%
+    #  mutate(folder = ifelse(Question == "Base data file",gsub("4_MAGNET/","",gsub("\\\\","/",Answer)),as.character(folder))) %>%
+      mutate(File = file.path("4_MAGNET", folder,Answer), Scenario = scenname) %>%
+      mutate(File = ifelse(Question == "Base data file",gsub("\\\\","/",Answer),as.character(File))) %>%
+      select(Scenario, Period, Question, File)
+
+    sceninfoall <- bind_rows(sceninfoall, sceninfo2)
+  }
+  return(sceninfoall)
+}
+
+
 magnet_get_years <- function(scenariosinfo){
   years <- c()
   for (s in 1:nrow(scenariosinfo)){
@@ -468,7 +553,6 @@ mergescendata <- function(df1, df2) {
 
 removescendata <- function(dflist, scen ) {
   # removes scenarios from all dfs in list, can be usefull sometimes
-  #in usal magnet data set up this should be Update, Update_view, Update_tax, and Solution as names
   mainnames <- names(dflist)
   for (m in mainnames){
     headers <- names(dflist[[m]])
@@ -503,33 +587,63 @@ remove_zero_entries <- function(df){
   return(df)
 }
 
-write_scendata_csv <- function(df, dir = "."){
-
-
-  #this just writes individual headers out into specific csv files in folders for Update, Update_view, etcetera.
+filter_scendata <- function(df, whitelist){
+  #removes headers if not in list
   mainnames <- names(df)
-  allouts <- list()
   for (m in mainnames){
+    headers <- names(df[[m]])
+    for(h in headers){
+      if(!(h %in% whitelist)){df[[m]][[h]] <- NULL}
+    }
+  }
+  return(df)
+}
+
+write_scendata_csv <- function(df, dir = ".", writemore = FALSE){
+
+  #writes scendata in csvs with the same headers, in folders based on the filename
+  #the writemore just writes individual headers out into specific csv files in folders for Update, Update_view, etcetera.
+  mainnames <- names(df)
+  for (m in mainnames){
+    allouts <- list()
     headers <- names(df[[m]])
     fp <- file.path(dir, m)
     if (!dir.exists(fp)) dir.create(fp, recursive = TRUE)
     for(h in headers){
       outcsv <- df[[m]][[h]]
-      write.csv(outcsv, file.path(fp, paste0(h,".csv")), row.names = FALSE)
-      dim = paste(str_sort(toupper(colnames(select(outcsv,-Value)))),collapse = "_")
+      if(writemore){write.csv(outcsv, file.path(fp, paste0(h,".csv")), row.names = FALSE)}
+      dim = toupper(colnames(select(outcsv,-Value)))
+      dim <- dim[!(dim %in% c("YEAR","SCENARIO"))]
+      dim = paste(str_sort(dim),collapse = "_")
+      outcsv$Header <- h
       allouts[[dim]][[h]] <- outcsv
     }
-  }
-  for (m in names(allouts)){
-    headers <- names(allouts[[m]])
-    fp <- file.path(dir,"SameDims")
-    if (!dir.exists(fp)) dir.create(fp, recursive = TRUE)
-    outcsv <- data.frame()
-    for(h in headers){
-      outcsv <- rbind(outcsv, allouts[[m]][[h]])
+
+    for (dm in names(allouts)){
+      headers <- names(allouts[[dm]])
+      outcsv <- data.frame()
+      for(h in headers){
+        outcsv <- rbind(outcsv, allouts[[dm]][[h]])
+      }
+      if("Header" %in% colnames(outcsv)){
+        outcsv <- spread(outcsv, Header, Value, fill = 0)
+        write.csv(outcsv, file.path(fp, paste0("x_",m,"_",dm,".csv")), row.names = FALSE)
+      }
     }
-    write.csv(outcsv, file.path(fp, paste0(m,".csv")), row.names = FALSE)
   }
+  # for (m in names(allouts)){
+  #   headers <- names(allouts[[m]])
+  #   fp <- file.path(dir)
+  #   if (!dir.exists(fp)) dir.create(fp, recursive = TRUE)
+  #   outcsv <- data.frame()
+  #   for(h in headers){
+  #     outcsv <- rbind(outcsv, allouts[[m]][[h]])
+  #   }
+  #   if("Header" %in% colnames(outcsv)){
+  #     outcsv <- spread(outcsv, Header, Value, fill = 0)
+  #     write.csv(outcsv, file.path(fp, paste0("x_",m,".csv")), row.names = FALSE)
+  #   }
+  # }
 }
 
 makeaggs <- function(dflist, mapping) {
