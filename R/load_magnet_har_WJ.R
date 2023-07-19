@@ -468,7 +468,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   maindir <- sceninfo$Maindir
 
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef)
-  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = FALSE, readcoef = readcoef)
+  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = recursive, readcoef = readcoef)
 
   df_scendata <- mergescendata(df_scendata, df_basedata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
