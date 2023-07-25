@@ -830,7 +830,7 @@ getusefulsets <- function(modelsetfile) {
 
 getcommapping <- function(sets) {
 
-  modelsetdata <- magnet_read_all_headers(setfile) %>% set_header_as_valcolname()
+  modelsetdata <- sets %>% set_header_as_valcolname()
   if(!("COMM" %in% names(modelsetdata))){modelsetdata[["COMM"]] <-modelsetdata[["H2"]] %>% rename(COMM = H2)}
   if(!("COMO" %in% names(modelsetdata))){modelsetdata[["COMO"]] <-modelsetdata[["H2O"]]  %>% rename(COMO = H2O)}
   comm2dcomm <- cbind(modelsetdata[["MAPT"]],modelsetdata[["COMO"]])

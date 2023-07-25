@@ -348,7 +348,7 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
 
   iomatrix_q <- gvc_prepiomatrix(IO_q,Q_q)
 
-  X_q <- gcv_leontiefinverse(iomatrix_q, Q_q)
+  X_q <- gvc_leontiefinverse(iomatrix_q, Q_q)
 
 
   # idmatrix <- diag(length(comreg)) #identity matrix with same dimension
