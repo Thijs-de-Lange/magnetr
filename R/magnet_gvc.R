@@ -164,7 +164,7 @@ gvc_prepiomatrix <- function(IO_q,Q_q){
   return(iomatrix_q)
 }
 
-gvc_leontiefinverse <- function(iomatrix_q,Q_Q){
+gvc_leontiefinverse <- function(iomatrix_q,Q_q){
 
   comregmap <- Q_q %>% select(-Value) %>% mutate(COMREG = paste(COMM, REG, sep="_"))
   comregmap2 <- rename(comregmap, COMREG_2 = COMREG, REG_2 = REG, COMM_2 = COMM)
