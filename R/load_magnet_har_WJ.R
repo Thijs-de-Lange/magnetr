@@ -324,7 +324,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update <- list()
   for (f in updatefiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
-    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
+    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update[[n]] <- rbind(df_update[[n]], dftmp[[n]])
     }
@@ -333,7 +333,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update_view <- list()
   for (f in updateviewfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
-    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
+    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update_view[[n]] <- rbind(df_update_view[[n]], dftmp[[n]])
     }
@@ -341,7 +341,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update_tax <- list()
   for (f in updatetaxfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
-    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
+    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update_tax[[n]] <- rbind(df_update_tax[[n]], dftmp[[n]])
     }
@@ -349,7 +349,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_solution <- list()
   for (f in solfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
-    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
+    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_solution[[n]] <- rbind(df_solution[[n]], dftmp[[n]])
     }
