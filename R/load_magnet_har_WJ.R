@@ -60,8 +60,8 @@ magnet_read_all_headers <- function(fullfilepath, whitelist = c(), blacklist = c
 }
 
 magnet_prepdf_for_write_har <- function(df, dimlist) {
-  #prepares the array for writing in order of the dimlist
-
+  # prepares the array for writing in order of the dimlist
+  # dimlist should be a named list with the entries of the dimensions in the right order and the same names as df
   # This is to make sure that the dimension is correct (in case of missing values adds 0 with left_join0)
   outputdf <- expand.grid(dimlist) %>% left_join0(df)
 
@@ -70,10 +70,17 @@ magnet_prepdf_for_write_har <- function(df, dimlist) {
 
 #' @export
 magnet_write_har <- function(dflist, outfilename) {
-  #Needs some testing, but takes a list of named dataframes where the names should be the
-  #final HEADER names that will be in the output hr file
-  #The write har is sensitive to the order of the values related to the order of the dimensions and the code below tries to do that
-  # provoding the exact dimlist dimensions will then use those.
+  # Takes a list of named dataframes where the names should be the
+  # final HEADER names that will be in the output hr file. The values should be in a column named 'Value'
+  # for example
+  # exampledf <- data.frame (REG  = c("NL", "ROW", "NL", "ROW"), COMM = c("pdr","pdr","Wht","wht"), Value = c(1,2,3,4))
+  # dflist <- list(PROD = exampledf, PRD2 = exampledf)
+  # Where "PROD" will be the header name and REG en COMM the sets.
+  # Make sure header names are not longer than 4 and set names not longer than 12 characters
+  # magnet_write_har(dflist ,"test.har")
+  # The write har is sensitive to the order of the values related to the order of the dimensions and the code  tries to do that.
+  # Use the magnet_prepdf_for_write_har to changes dimensions order manually
+
   ar <- list()
 
   if(is.data.frame(dflist)){ # If someone juts passing a single dataframe, make it work.
@@ -128,6 +135,7 @@ magnet_write_har <- function(dflist, outfilename) {
 magnet_get_scenarioinfo <- function(maindir) {
   #Creates a dataframe with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
+
   getinfobasedata <- function(x){
     answertxt <- read.delim(x,header=FALSE)
     BaseData_b <- str_trim(answertxt[6,])
@@ -140,22 +148,6 @@ magnet_get_scenarioinfo <- function(maindir) {
     return(paste(answertxt$Periods, collapse = ";"))
   }
 
-  getinfomodelsets <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
-    modelsets <- gsub("- ","",str_trim(answertxt[9,]))
-  }
-
-  getinfomodelpar <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
-    modelpar <- gsub("- ","",str_trim(answertxt[11,]))
-  }
-
-  getinfomodelsettings <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
-    modelsettings <- gsub("- ","",str_trim(answertxt[13,]))
-  }
-
-
   scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
 
@@ -167,60 +159,7 @@ magnet_get_scenarioinfo <- function(maindir) {
   scen <- scen %>% mutate(scentextfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
     subset(file.exists(scentextfile))
 
-  scennamesall <- scen
-
-  scentextfile <- scen$scentextfile[1]
-  scentxt <- read.delim(scentextfile,  header = FALSE)
-  colnames(scentxt) <- "Settings"
-  scentxt$Section <- scentxt$Settings
-  for (i in 1:length(scentxt$Settings)) {
-    t <- scentxt$Settings[i]
-    hdr <- TRUE
-    if (substr(t, 1, 3) == "   ") {
-      hdr <- FALSE
-    }
-    if(hdr){
-      hdrtxt = t
-    }
-    scentxt$Section[i] <- hdrtxt
-  }
-  basedata <- normalizePath(file.path(maindir,
-              subset(scentxt, Section == "Base data file" & Settings != "Base data file")$Settings %>% str_trim()))
-  periods <- subset(scentxt, grepl("Period",Section)) %>% rename(Period = Section)
-
-  periods$Question <- ""
-  periods$Answer <- ""
-  hdrtxt = ""
-  answertxt = ""
-  for (i in 1:length(periods$Settings)) {
-    t <- periods$Settings[i]
-    answertxt = ""
-    hdr <- TRUE
-    if (grepl(" - ",t)) {
-      hdr <- FALSE
-      answertxt = t
-    }
-    if(hdr){
-      hdrtxt = t
-    }
-    periods$Question[i] <- str_trim(hdrtxt)
-    periods$Answer[i] <- gsub("- ","",str_trim(answertxt))
-  }
-  periods2 <- subset(periods,Answer != "") %>% select(-Settings) %>%
-     mutate(fileext = tolower(tools::file_ext(Answer))) %>% subset(fileext != "") %>%
-     mutate(folder = case_when(Question == "Closure file" ~ "CommandFiles/Closures",
-                               Question == "Shocks file" ~ "CommandFiles/Shocks",
-                               Question == "Solution method" ~ "CommandFiles/SolutionMethods",
-                               Question == "Sets for shocks" ~ "CommandFiles/PolicySets",
-                               Question == "Program sets file" ~ "BaseData/Sets",
-                               Question == "Parameter file" ~ "BaseData/Par",
-                               Question == "Model parameter files" ~ "BaseData/ModPar",
-                               Question == "Shock data file" ~ "Shocks",
-                               Question == "Shock program" ~ "CodeShock",
-                               Question == "GTAP executable" ~ "CodeMainProgram")) %>%
-     mutate(file = file.path(maindir, "4_MAGNET", folder,Answer))
-
-  scenariosinfo <- scennamesall %>%
+  scenariosinfo <- scen %>%
     mutate(answerfile = file.path(Maindir, "4_MAGNET","Scenarios", Scenario, paste(Scenario,".txt", sep = ""))) %>%
     subset(file.exists(answerfile)) %>%
     mutate(BaseData_b = file.path(maindir,unlist(lapply(answerfile, getinfobasedata)))) %>%
@@ -228,16 +167,13 @@ magnet_get_scenarioinfo <- function(maindir) {
     mutate(BaseData_b_solution = ifelse(grepl("update_view",BaseData_b_view),
                                         gsub("_update.har$","_solution.sol",BaseData_b,ignore.case = TRUE),"")) %>%
     mutate(BaseData_b_solution = gsub("Updates","/Solutions/",BaseData_b_solution,ignore.case = TRUE)) %>%
-    #  mutate(Sets = file.path(maindir,"BaseData","Sets",unlist(lapply(answerfile, getinfomodelsets))))%>%
-    #  mutate(Par = file.path(maindir,"BaseData","Par",unlist(lapply(answerfile, getinfomodelpar))))%>%
-    #  mutate(ModPar = file.path(maindir,"BaseData","ModPar",unlist(lapply(answerfile, getinfomodelsettings)))) %>%
     mutate(Periods = unlist(lapply(answerfile, getinfoperiods)))
 
   return(scenariosinfo)
 }
 
 magnet_get_scenarioinfo_long <- function(maindir) {
-  #Creates a dataframe, long list, with usefull info of all scenarios with a log file present.
+  # Creates a dataframe, long list, with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
 
   scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
@@ -388,6 +324,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update <- list()
   for (f in updatefiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
+    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update[[n]] <- rbind(df_update[[n]], dftmp[[n]])
     }
@@ -396,6 +333,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update_view <- list()
   for (f in updateviewfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
+    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update_view[[n]] <- rbind(df_update_view[[n]], dftmp[[n]])
     }
@@ -403,6 +341,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_update_tax <- list()
   for (f in updatetaxfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
+    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update_tax[[n]] <- rbind(df_update_tax[[n]], dftmp[[n]])
     }
@@ -410,6 +349,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE) {
   df_solution <- list()
   for (f in solfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
+    if(is.null(dftmp)){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_solution[[n]] <- rbind(df_solution[[n]], dftmp[[n]])
     }
