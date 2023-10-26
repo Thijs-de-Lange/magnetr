@@ -1,8 +1,4 @@
-# getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE) {
-#
-#
-#
-# }
+
 
 gvc_prepmatbal <- function(bdata, threshold = 0, useloop = FALSE){
 
@@ -10,9 +6,6 @@ gvc_prepmatbal <- function(bdata, threshold = 0, useloop = FALSE){
   margs <- unique(bdata$DTRN$MARG)
   agents <- c("hh","govt","CGDS")
 
-  # if(typeof(aggsets) == "list") {
-  #   bdata <- MakeAggForMBAL(bdata, aggsets)
-  # }
   comms <- unique(bdata$MAKB$COMM)
 
   # this is the code copied from PostSimCalc/Materialbalances.gmp, which collects the data form basedata
@@ -177,155 +170,38 @@ gvc_leontiefinverse <- function(iomatrix_q,Q_q){
   X_q <- array(as.vector(leontiefinverse_q), #put the right names in again after solve
                dim = c(length(comreg),length(comreg)),
                dimnames = list(COMREG = comreg,COMREG_2 = comreg))
-
+  return(X_q)
 }
 
-getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE) {
+gvc_melt_matrix <- function(X_q, Q_q) {
+  #make commreg, commbination of comm and reg to make matrix with.:
+  comregmap <- Q_q %>% select(-Value) %>% mutate(COMREG = paste(COMM, REG, sep="_"))
+  comregmap2 <- rename(comregmap, COMREG_2 = COMREG, REG_2 = REG, COMM_2 = COMM)
+  comreg <- comregmap$COMREG
+
+  LI_q <- reshape2::melt(X_q) %>% left_join(comregmap) %>% left_join(comregmap2) %>% select(-COMREG,-COMREG_2)
+  return(LI_q)
+}
+
+gvc_prep_LI_q <- function(bdata, threshold = 0, useloop = TRUE){
+  # might be usefull if you only want the LI
+  mbal = gvc_prepmatbal(bdata,threshold,useloop)
+  Q_q <- mbal[[1]]
+  F_q <- mbal[[2]]
+  IO_q <- mbal[[3]]
+
+  iomatrix_q <- gvc_prepiomatrix(IO_q,Q_q)
+  X_q <- gvc_leontiefinverse(iomatrix_q, Q_q)
+
+  LI_q <- gvc_melt_matrix(X_q, Q_q)
+
+  return(LI_q)
+}
+
+getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = TRUE) {
   #threshold applied to a couple of bigger matrices in the code that are not shares or coefficients
-  # useloop will try to break some joins down into smaller loops, for memory use efficiency. But is very very slow
-#
-#   regs <- unique(bdata$PRDQ$REG)
-#   margs <- unique(bdata$DTRN$MARG)
-#   agents <- c("hh","govt","CGDS")
-#
-#   if(typeof(aggsets) == "list") {
-#     bdata <- MakeAggForMBAL(bdata, aggsets)
-#   }
-#   comms <- unique(bdata$MAKB$COMM)
-#
-#   # this is the code copied from PostSimCalc/Materialbalances.gmp, which collects the data form basedata
-#   chk_0ITRADE <- sum(subset(bdata$VFOB, REG == REG_2)$Value)
-#   if(chk_0ITRADE >0){stop("Check that your data hase no internal trade #")}
-#
-#   # COMM_SHR(c,a,r) # Commodity share in activity input use #;
-#   COMM_SHR <- bdata$MAKB %>% group_by(ACTS,REG) %>% mutate(Value = Value/sum(Value)) %>% ungroup() %>%
-#     mutate(Value = ifelse(is.nan(Value), 0, Value))
-#
-#   # Prodiction
-#   Q_q <- bdata$PRDQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
-#
-#   # I_DQ(c,p,r) # Intermediate demand for domestic commodities (mil USD) #;
-#   I_DQ <-  full_join0(rename(COMM_SHR, p = COMM), rename(bdata$DINQ, V1 = Value, c = COMM)) %>% mutate(Value = V1 * Value) %>%
-#     group_by(c,p,REG) %>% summarize(Value = sum(Value)) %>%
-#     rename(COMM = c, COMM_2 = p)
-#
-#   # F_DQ(c,a,r) # Final demand for domestic commodities by agent (mil USD) #;
-#   F_DQ <- bind_rows(bdata$DFNH %>% mutate(AGENT = "hh"),
-#                 bdata$DFNG %>% mutate(AGENT = "govt"),
-#                 bdata$DFNI %>% mutate(AGENT = "CGDS"))
-#
-#   # Coefficient (all,c,COMM)(all,a,MDEMCAT)(all,r,REG)
-#   # MDEMAQ(c,a,r) # Quantity of agent's demand for imports by region r #;
-#   MDEMAQ <- bind_rows(full_join0(COMM_SHR %>% rename(p = COMM, V1 = Value),
-#                                 bdata$MINQ %>% rename(c = COMM, V2 = Value)) %>%
-#                         mutate(Value = V1 * V2) %>% select(-V2,-V1) %>%
-#                         rename(COMM = c, MDEMCAT = p) %>%
-#                         group_by(COMM, MDEMCAT, REG) %>% summarize(Value = sum(Value)),
-#                       bdata$MFNH %>% mutate(MDEMCAT = "hh"),
-#                       bdata$MFNG %>% mutate(MDEMCAT = "govt"),
-#                       bdata$MFNI %>% mutate(MDEMCAT = "CGDS")) %>%
-#     mutate(Value = ifelse(Value <0, 0, Value))
-#
-#   # MDEMQT(c,r) # Quantity total demand for imports by region r #;
-#   MDEMQT <- MDEMAQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
-#
-#   # MAQSHR(c,a,r) # Agent's quantity shares in total imports by region r #;
-#   MAQSHR <- full_join0(MDEMAQ, rename(MDEMQT, V1 = Value)) %>%
-#     mutate(Value = ifelse(V1 > 0, Value/V1,0)) %>% select(-V1)
-#
-#   # MAGNTQ(c,a,s,d) # Quantity of agent's imports by region r (mil USD) #;
-#   MAGNTQ <- full_join0(rename(MAQSHR, d = REG),
-#                       rename(bdata$TRAD, s = REG, d = REG_2, V1 = Value)) %>%
-#     mutate(Value = Value * V1) %>%
-#     select(COMM,MDEMCAT,REG = s, REG_2 = d, Value) %>%
-#     subset(Value > threshold)
-#
-#   # #Quantity of intermediate demand for imported commodities s in d (mil USD) #;
-#   I_MQ <- MAGNTQ %>% subset(MDEMCAT %in% comms) %>% rename(COMM_2 = MDEMCAT)%>%
-#     subset(Value > threshold)
-#
-#   # # Quantity final demand for imported commodities from s in d (mil USD) #;
-#   F_MQ <- MAGNTQ %>% subset(MDEMCAT %in% agents) %>% rename(AGENT = MDEMCAT)
-#
-#   # TRMMAGNTQ(m,c,a,s,d) # Agent's transport margins by region s #;
-#   TRMMAGNTQ <- full_join0(rename(MAQSHR, REG_2 = REG), rename(bdata$DTRN, V1 = Value)) %>%
-#     mutate(Value = V1 * Value) %>%
-#     select(MARG, COMM, MDEMCAT, REG, REG_2, Value) %>%
-#     subset(Value > threshold)
-#
-#   # !Compute bilateral exports of transport services based on regional contributions to global pool!
-#   # # Region share in quantity global pool of transport services #;
-#   shr_TRANSS_q <- bdata$STRN %>% group_by(MARG) %>% mutate(Value = Value/sum(Value))
-#
-#   # # Linking transporter country (t) to demand for transport by destination d #;
-#   if(useloop){
-#     TRANSPRTQ <- data.frame()
-#
-#     looplist <- as.character(unique(select(ungroup(shr_TRANSS_q), REG))$REG)
-#     print("starting loop over REG column to make TRANSPRTQ matrix, this can take some time.")
-#     for (n in 1:length(looplist)) {
-#       print(paste("now at region",n,"of",length(looplist)))
-#       reg <- looplist[n]
-#       shr_TRANSS_q_part <- subset(shr_TRANSS_q, REG == reg)
-#       TRANSPRTQ_part <- left_join(rename(shr_TRANSS_q_part, t = REG), rename(TRMMAGNTQ, s = REG, REG = REG_2, V1 = Value)) %>%
-#         mutate(Value = Value * V1) %>% group_by(MARG,MDEMCAT,REG,t) %>% summarize(Value = sum(Value)) %>%
-#         select(MARG,MDEMCAT,REG,REG_2 = t,Value) %>%
-#         subset(Value > threshold)
-#       TRANSPRTQ <- bind_rows(TRANSPRTQ, TRANSPRTQ_part)
-#     }
-#
-#
-#   } else {
-#     TRANSPRTQ <- left_join(rename(shr_TRANSS_q, t = REG), rename(TRMMAGNTQ, s = REG, REG = REG_2, V1 = Value)) %>%
-#       mutate(Value = Value * V1) %>% group_by(MARG,MDEMCAT,REG,t) %>% summarize(Value = sum(Value)) %>%
-#       select(MARG,MDEMCAT,REG,REG_2 = t,Value) %>%
-#       subset(Value > threshold)
-#   }
-#
-#
-#   # # Qunatity domestic transport services for trade from regions s (own trade 0)#;
-#   dTRANSPRTQ <- TRANSPRTQ %>% mutate(Value = ifelse(REG == REG_2, Value, 0)) %>% subset(REG == REG_2) %>% select(-REG_2)
-#   TRANSPRTQ <- TRANSPRTQ %>% mutate(Value = ifelse(REG == REG_2, 0, Value))
-#
-#   # ! Add the transport services (margins) from other services to imports by region!
-#   # I_MQ(m,p,t,d) = I_MQ(m,p,t,d) + TRANSPRTQ(m,p,d,t);
-#   I_MQ2 <- left_join0(rename(I_MQ, m = COMM, p = COMM_2, t = REG, d = REG_2),
-#                      rename(TRANSPRTQ, m = MARG, p = MDEMCAT,  d = REG, t = REG_2, V1 = Value)) %>%
-#     mutate(V2 = V1 + Value) %>% #since we did left_join0 with zeroes this only does something for what is in TRANSPRT
-#     select(COMM = m, COMM_2 = p, REG = t, REG_2 = d, Value = V2) %>%
-#     subset(Value > threshold)
-#
-#   F_MQ2 <- left_join0(rename(F_MQ, m = COMM, a = AGENT, t = REG, d = REG_2),
-#                      rename(TRANSPRTQ, m = MARG, a = MDEMCAT,  d = REG, t = REG_2, V1 = Value)) %>%
-#     mutate(V2 = V1 + Value) %>% #since we did left_join0 with zeroes this only does something for what is in TRANSPRT
-#     select(COMM = m, AGENT = a, REG = t, REG_2 = d, Value = V2) %>%
-#     subset(Value > threshold)
-#
-#   # !Margins provided to self are added to domestic demand for transport services!
-#   I_DQ2 <- left_join0(rename(I_DQ, m = COMM, p = COMM_2, d = REG),
-#                      rename(dTRANSPRTQ, m = MARG, p = MDEMCAT, d = REG, V1 = Value)) %>%
-#     mutate(V2 = V1 + Value) %>% #since we did left_join0 with zeroes this only does something for what is in TRANSPRT
-#     select(COMM = m, COMM_2 = p, REG = d, Value = V2)%>%
-#     subset(Value > threshold)
-#
-#   F_DQ2 <- left_join0(rename(F_DQ, m = COMM, a = AGENT, d = REG),
-#                      rename(dTRANSPRTQ, m = MARG, a = MDEMCAT, d = REG, V1 = Value)) %>%
-#     mutate(V2 = V1 + Value) %>% #since we did left_join0 with zeroes this only does something for what is in TRANSPRT
-#     select(COMM = m, AGENT = a, REG = d, Value = V2)%>%
-#     subset(Value > threshold)
-#
-#   # ! Intermediates!
-#   I_q <- bind_rows(subset(I_MQ2, REG != REG_2), mutate(I_DQ2, REG_2 = REG)) %>%
-#     subset(Value > threshold)
-#
-#   # ! Final demand!
-#   F_q <- bind_rows(subset(F_MQ2, REG != REG_2), mutate(F_DQ2, REG_2 = REG))%>%
-#     subset(Value > threshold)
-#
-#   #IO coeff.(qtity): use of i from region s when producing comm. p in region d#;
-#   IO_q <- full_join0(I_q, rename(Q_q, REG_2 = REG, COMM_2 = COMM, V2 = Value)) %>%
-#     mutate(Value = ifelse(V2 > 0, Value/V2, 0)) %>%
-#     select(COMM, REG, COMM_2, REG_2, Value) %>% ungroup()
+  # useloop will try to break some joins down into smaller loops, for memory use efficiency.
+  # For bigger things this is helps prevent crashes and is faster, for smaller things this is slower
 
   mbal = gvc_prepmatbal(bdata,threshold,useloop)
   Q_q <- mbal[[1]]
@@ -333,35 +209,11 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
   IO_q <- mbal[[3]]
 
   ## Invert Matrix -----
-  #make commreg, commbination of comm and reg to make matrix with.:
-  comregmap <- Q_q %>% select(-Value) %>% mutate(COMREG = paste(COMM, REG, sep="_"))
-  comregmap2 <- rename(comregmap, COMREG_2 = COMREG, REG_2 = REG, COMM_2 = COMM)
-  comreg <- comregmap$COMREG
-  #
-  # aIO_q <- left_join(IO_q, comregmap) %>% left_join(comregmap2) %>% select(-COMM,-COMM_2,-REG,-REG_2)
-  #
-  #
-  #
-  # iomatrix_q <- expand_grid(COMREG = comreg, COMREG_2 = comreg)
-  # iomatrix_q <- left_join0(iomatrix_q, aIO_q) %>% mutate(COMREG = factor(COMREG, levels = comreg)) # to ensure order
-  # iomatrix_q <- spread(iomatrix_q, COMREG_2, Value) %>% select(all_of(comreg)) # the select ensure order of columns
-
   iomatrix_q <- gvc_prepiomatrix(IO_q,Q_q)
-
   X_q <- gvc_leontiefinverse(iomatrix_q, Q_q)
 
-
-  # idmatrix <- diag(length(comreg)) #identity matrix with same dimension
-  #
-  # A_q <- idmatrix - iomatrix_q # Making A matrix
-  # leontiefinverse_q <- solve(A_q) # this inverts the matrix
-  # X_q <- array(as.vector(leontiefinverse_q), #put the right names in again after solve
-  #              dim = c(length(comreg),length(comreg)),
-  #              dimnames = list(COMREG = comreg,COMREG_2 = comreg))
-
   # converse converted to 'long' format'
-  LI_q <- melt(X_q) %>% left_join(comregmap) %>% left_join(comregmap2) %>% select(-COMREG,-COMREG_2)
-
+  LI_q <- gvc_melt_matrix(X_q, Q_q)
   ## Material Flow indicators ---------
   colnames(F_q) <- c("COMM_2","AGENT","REG_2","REG_3","Value_F")
   F_q <- subset(F_q, Value_F > threshold)
@@ -383,9 +235,8 @@ getMBALflows <- function(bdata, aggsets = FALSE, threshold = 0, useloop = FALSE)
     for (n in 1:nrow(looplist)) {
       print(paste("now at row",n,"of",nrow(looplist)))
       reg2 <- looplist$REG_2[n]
-     # comm2 <- looplist$COMM_2[n]
-      F_Q_part <- subset(F_q, REG_2 == reg2)# & COMM_2 == comm2)
-      LI_q_part <- subset(LI_q, REG_2 == reg2)# & COMM_2 == comm2)
+      F_Q_part <- subset(F_q, REG_2 == reg2)
+      LI_q_part <- subset(LI_q, REG_2 == reg2)
       QFD_q_part <- full_join(F_Q_part,LI_q_part) %>% mutate(Value = value * Value_F) %>% select(-value, -Value_F) %>%
         subset(Value > threshold) %>%
         select(COMM, REG, COMM_2, REG_2, AGENT, REG_3, Value)
@@ -622,10 +473,27 @@ make_food_gvc <- function(gvcdata, sets){
   return(gvc_food)
 }
 
+# make_feed_gvc <- function(gvcdata, sets){
+#   #typical way to subset the gvcdata for feed analysies
+#   # ignores all nonfood flows, and focuses on primary & processed flows into  primary livestock
+#   nonfoodset <- sets$NONF$Value
+#   livestock <- union(sets$LVST$Value,sets$ANI$Value)
+#   comm <- sets$COMM$Value
+#   hfood <- setdiff(comm, nonfoodset)
+#   primagri <- sets$PRAG$Value
+#   procsevfood <- setdiff(hfood, primagri)
+#
+#   gvc_feed <- gvcdata %>% subset(COMM %in% primagri & COMM_2 %in% livestock) %>%
+#     group_by(COMM, COMM_2, REG, REG_2, Value) %>% summarize(Value = sum(Value)) %>%
+#     group_by(COMM,REG) %>% mutate(ProdShare = Value/sum(Value)) %>% ungroup()
+#
+#   return(gvc_feed)
+# }
+
 make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
   NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
   population <- bdata$POP %>% rename(REG_3 = REG, POP = Value)
-  gvcdata_nutrients <- gvcdata_food  %>%
+  gvcdata_nutrients <- gvcdata %>%
     left_join(NVOM) %>% left_join(NCMF)  %>%
     mutate(VirtFlow = (NVOMval * ProdShare / NCMFVal)) %>% subset(VirtFlow > 0) %>%
     left_join(population) %>%
