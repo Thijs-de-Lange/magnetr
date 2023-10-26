@@ -664,11 +664,12 @@ removescendata <- function(dflist, scen ) {
 ### Scenario data cleaning and writing functions ----
 
 remove_zero_entries <- function(df){
-  #removes zeroes if all entries are zero of given subset
+  #removes zeroes of "Value" if all entries are zero of given subset
   mainnames <- names(df)
   for (m in mainnames){
     headers <- names(df[[m]])
     for(h in headers){
+      if(!("Value" %in% colnames(df[[m]][[h]]))){next}
       if("REG_2" %in% colnames(df[[m]][[h]]) & "REG" %in% colnames(df[[m]][[h]])) {
         dftmp <- df[[m]][[h]] %>%
           group_by(across(c(-Value,-Year,-Scenario,-REG,-REG_2))) %>% mutate(Valuetest = sum(Value)) %>% ungroup()  %>%
