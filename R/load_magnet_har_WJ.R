@@ -358,28 +358,6 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL)
   TRAD1 <- left_join(df$TRAD, rename(Prodval, Prodval = Value)) %>% left_join(rename(Prod, Quant = Value)) %>%
     mutate(ExpShare = Value/Prodval, QEXPO = ExpShare * Quant)
   QEXPO <- TRAD1 %>% select(COMM,REG,REG_2,Value = QEXPO)
-#
-#   sum(subset(QEXPO, COMM == "wht")$Value)
-#
-#
-#   livestock <- union(sets$LVST$Value,sets$ANI$Value)
-#   primagri <- sets$PRAG$Value
-#   crops <- setdiff(primagri,livestock) %>% setdiff(sets$FISH$Value)
-#   procmeat = c("othcmt","bfmt","othmt","pulmt","dairy")
-#
-#   df_fn <- df
-#   df_fn$DINQ <- df_fn$DINQ %>% mutate(Value = ifelse(ACTS %in% crops ,0,Value))
-#   df_fn$MINQ <- df_fn$MINQ %>% mutate(Value = ifelse(ACTS %in% crops ,0,Value))
-#
-#   gvcdata_full <- getMBALflows(df_fn,threshold = 0.1) %>% subset(Value > 0)
-#
-#   gvcdata_prod <- left_join(gvcdata_full,rename(Prod, IndicatorValue = Value)) %>%
-#     mutate(Value = ProdShare * IndicatorValue) %>% select(-ProdShare, -IndicatorValue) %>% subset(Value > 0)
-#   gvcdata_feed <- gvcdata_prod %>%  group_by(COMM,COMM_2,AGENT) %>%  summarize(Value = sum(Value)) %>% subset(COMM == "wht") %>%
-#     subset(COMM_2 %in% livestock | COMM_2 %in% procmeat)
-#
-#   gvcdata_feed <- gvcdata_prod %>%  group_by(COMM,COMM_2,REG_2) %>% summarize(Value = sum(Value))
-#   sum(subset(gvcdata_feed, COMM == "wht")$Value)
 
   ## regular GVC things, for o.a. PBL
   indicators <- getcommregindicators(sets,df)
@@ -488,9 +466,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     }
   }
 
+  df_gvc <- list()
   if(addgvcinfo){
-
-    df_gvc <- list()
     for (f in updatefiles) {
       year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
       dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF)
