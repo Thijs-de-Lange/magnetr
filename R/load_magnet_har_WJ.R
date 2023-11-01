@@ -137,16 +137,16 @@ magnet_get_scenarioinfo <- function(maindir) {
   # Used as basis for other read functions
 
   getinfobasedata <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
+    answertxt <- read.delim(x,header=FALSE,quote="")
     BaseData_b <- str_trim(answertxt[6,])
   }
   getinfosets <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
+    answertxt <- read.delim(x,header=FALSE,quote="")
     BaseData_b <- file.path("4_MAGNET","BaseData","Sets",gsub("- ","",str_trim(answertxt[9,])))
   }
 
   getinfoperiods <- function(x){
-    answertxt <- read.delim(x,header=FALSE)
+    answertxt <- read.delim(x,header=FALSE,quote="")
     answertxt <- subset(answertxt, grepl("Period", V1)) %>%
       mutate(Periods = gsub(" ","",str_extract(V1,"\\d{4} - \\d{4}")))
     return(paste(answertxt$Periods, collapse = ";"))
@@ -197,7 +197,7 @@ magnet_get_scenarioinfo_long <- function(maindir) {
   for(i in 1:nrow(scen)) {
     scenname = scen$Scenario[i]
     scentextfile <- scen$scentextfile[i]
-    scentxt <- read.delim(scentextfile,  header = FALSE)
+    scentxt <- read.delim(scentextfile,  header = FALSE,quote="")
     colnames(scentxt) <- "Settings"
     scentxt$Section <- scentxt$Settings
     for (i in 1:length(scentxt$Settings)) {
