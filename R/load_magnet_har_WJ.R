@@ -426,11 +426,11 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
   updateviewfiles <- list.files(file.path(maindir,"4_MAGNET","Updates"), recursive = TRUE,
-                                pattern = paste(scenname,"_\\d{4}-\\d{4}_update_view.har$",sep=""), full.names = TRUE, ignore.case = TRUE)
+                                pattern = paste("^",scenname,"_\\d{4}-\\d{4}_update_view.har$",sep=""), full.names = TRUE, ignore.case = TRUE)
   updatefiles <- gsub("_view", "", updateviewfiles)
   updatetaxfiles <- gsub("_view", "_tax", updateviewfiles)
   solfiles <- list.files(file.path(maindir,"4_MAGNET","Solutions"), recursive = TRUE,
-                         pattern = paste(scenname,"_\\d{4}-\\d{4}_Solution.sol$",sep=""), full.names = TRUE, ignore.case = TRUE)
+                         pattern = paste("^",scenname,"_\\d{4}-\\d{4}_Solution.sol$",sep=""), full.names = TRUE, ignore.case = TRUE)
 
   df_update <- list()
   for (f in updatefiles) {
