@@ -302,7 +302,7 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
   return(df)
 }
 
-readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL) {
+readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,threshold = 0.1) {
 
   df <-  tryCatch(
     {
@@ -325,7 +325,7 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL)
   df_fn$DINQ <- df_fn$DINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
   df_fn$MINQ <- df_fn$MINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
 
-  gvcdata_full_food <- getMBALflows(df_fn,threshold = 0.1) %>% subset(Value > 0)
+  gvcdata_full_food <- getMBALflows(df_fn,threshold = threshold) %>% subset(Value > 0)
   gvcdata_food <- magnetr:::make_food_gvc(gvcdata_full_food, sets)
   if(is.null(NCMF)){
     NCMF <- magnetr:::generate_ncmf(gvcdata_food, df_fn)
@@ -362,7 +362,7 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL)
   ## regular GVC things, for o.a. PBL
   indicators <- getcommregindicators(sets,df)
 
-  mbal <- gvc_prepmatbal(df,threshold = 0.1)
+  mbal <- gvc_prepmatbal(df,threshold = threshold)
 
   Q_q <- mbal[[1]]
   F_q <- mbal[[2]]
@@ -375,7 +375,7 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL)
   LI_q <- gvc_melt_matrix(X_q, Q_q)
 
   colnames(F_q) <- c("COMM_2","AGENT","REG_2","REG_3","Value_F")
-  F_q <- subset(F_q, Value_F > 0.1)
+  F_q <- subset(F_q, Value_F > threshold)
   LI_q <- subset(LI_q, value > 0)
   QFD_q <- data.frame()
 
@@ -421,7 +421,7 @@ addyearandscen <- function(df, year, scenname){
   return(df)
 }
 
-readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL) {
+readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL, threshold = 0.1) {
   # Reads all files in a scenario for a given scenario name.
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
@@ -470,7 +470,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   if(addgvcinfo){
     for (f in updatefiles) {
       year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
-      dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF)
+      dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
       for (n in names(dftmp)){
         df_gvc[[n]] <- rbind(df_gvc[[n]], dftmp[[n]])
@@ -485,7 +485,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
 
 readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
                          recursive = FALSE, overwrite_scenname = FALSE, readcoef = TRUE,
-                         addgvcinfo = FALSE, sets = NULL){
+                         addgvcinfo = FALSE, sets = NULL, threshold = threshold){
   #Reads basedata.
   # Uses the scenario info which can possible have a normal run as input, so it tries to read solution file if it is ther
   # Recursively then will also read the original basedata. I think it works ;).
@@ -518,7 +518,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
                       Update_tax = BaseData_b_tax, Solution = BaseData_b_solution)
 
   if(addgvcinfo){
-    df_basedata$GVC <- readscenariofile_gvc(sceninfo$BaseData_b, year = year, scenname = scenname, sets = sets)
+    df_basedata$GVC <- readscenariofile_gvc(sceninfo$BaseData_b, year = year, scenname = scenname, sets = sets, threshold = threshold)
   }
 
   if(grepl("_update.har$",sceninfo$BaseData_b) & recursive == TRUE){
@@ -532,7 +532,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 0.1){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
@@ -540,10 +540,10 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   sets <- magnet_read_all_headers(sceninfo$Sets)
 
   df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = recursive,
-                              readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets)
+                              readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold)
   NCMF = df_basedata$GVC$NCMF
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
-                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets)
+                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold)
 
   df_scendata <- mergescendata(df_scendata, df_basedata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
