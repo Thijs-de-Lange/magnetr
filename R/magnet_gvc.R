@@ -1,4 +1,19 @@
+gvc_fixbdata <- function(bdata) {
+  #this is to fix the names to accomodate for the new names by Marijke. To be used just after reading basedata. Does not delete new headers
+  if(!("TRAD" %in% names(bdata))){bdata$TRAD <- bdata$TR_Q}
+  if(!("PRDQ" %in% names(bdata))){bdata$PRDQ <- bdata$PQ_Q}
+  if(!("DINQ" %in% names(bdata))){bdata$DINQ <- bdata$DA_Q}
+  if(!("MINQ" %in% names(bdata))){bdata$MINQ <- bdata$MA_Q}
+  if(!("DFNH" %in% names(bdata))){bdata$DFNH <- bdata$DP_Q}
+  if(!("MFNH" %in% names(bdata))){bdata$MFNH <- bdata$MP_Q}
+  if(!("DFNG" %in% names(bdata))){bdata$DFNG <- bdata$DG_Q}
+  if(!("MFNG" %in% names(bdata))){bdata$MFNG <- bdata$MG_Q}
+  if(!("DFNI" %in% names(bdata))){bdata$DFNI <- bdata$DI_Q}
+  if(!("MFNI" %in% names(bdata))){bdata$MFNI <- bdata$MI_Q}
+  if(!("DTRN" %in% names(bdata))){bdata$DTRN <- bdata$TD_Q}
+  if(!("STRN" %in% names(bdata))){bdata$STRN <- bdata$TS_Q}
 
+}
 
 gvc_prepmatbal <- function(bdata, threshold = 0, useloop = FALSE){
 
