@@ -437,16 +437,15 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update[[n]] <- rbind(df_update[[n]], dftmp[[n]])
+      df_update[[n]] <- bind_rows(df_update[[n]], dftmp[[n]])
     }
   }
-
   df_update_view <- list()
   for (f in updateviewfiles) {
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update_view[[n]] <- rbind(df_update_view[[n]], dftmp[[n]])
+      df_update_view[[n]] <- bind_rows(df_update_view[[n]], dftmp[[n]])
     }
   }
   df_update_tax <- list()
@@ -454,7 +453,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update_tax[[n]] <- rbind(df_update_tax[[n]], dftmp[[n]])
+      df_update_tax[[n]] <- bind_rows(df_update_tax[[n]], dftmp[[n]])
     }
   }
   df_solution <- list()
@@ -462,7 +461,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_solution[[n]] <- rbind(df_solution[[n]], dftmp[[n]])
+      df_solution[[n]] <- bind_rows(df_solution[[n]], dftmp[[n]])
     }
   }
 
@@ -473,7 +472,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
       dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
       for (n in names(dftmp)){
-        df_gvc[[n]] <- rbind(df_gvc[[n]], dftmp[[n]])
+        df_gvc[[n]] <- bind_rows(df_gvc[[n]], dftmp[[n]])
       }
     }
   }
@@ -491,11 +490,9 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
   # Recursively then will also read the original basedata. I think it works ;).
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
-  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c(whitelist,"YEAR"),useCoefficientsAsNames = readcoef)
   # need the year data if it's not in the whitelist
-  #if(!("YEAR" %in% colnames(BaseData_b))){
-  #  BaseData_b$YEAR <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = c("YEAR"),useCoefficientsAsNames = readcoef)$YEAR
-  #}
+  if(!is.null(whitelist)){whitelist = c(whitelist,"YEAR")}
+  BaseData_b <- magnet_read_all_headers(sceninfo$BaseData_b, whitelist = whitelist, useCoefficientsAsNames = readcoef)
 
   BaseData_b_view <- magnet_read_all_headers(sceninfo$BaseData_b_view, whitelist = whitelist,useCoefficientsAsNames = readcoef)
   BaseData_b_tax <- magnet_read_all_headers(sceninfo$BaseData_b_tax, whitelist = whitelist,useCoefficientsAsNames = readcoef)
@@ -615,7 +612,7 @@ mergescendata <- function(df1, df2) {
           }
         }
         if(identical(names(df1_h), names(df2_h))) {
-          df1[[m]][[h]] <- rbind(df1_h,df2_h)
+          df1[[m]][[h]] <- bind_rows(df1_h,df2_h)
         } else {
           warning(paste("Headers of",h,"in",m,"do not match"))
         }
@@ -699,7 +696,7 @@ write_scendata_csv <- function(df, dir = ".", writemore = FALSE){
       headers <- names(allouts[[dm]])
       outcsv <- data.frame()
       for(h in headers){
-        outcsv <- rbind(outcsv, allouts[[dm]][[h]])
+        outcsv <- bind_rows(outcsv, allouts[[dm]][[h]])
       }
       if("Header" %in% colnames(outcsv)){
         outcsv <- spread(outcsv, Header, Value, fill = 0)
@@ -707,19 +704,6 @@ write_scendata_csv <- function(df, dir = ".", writemore = FALSE){
       }
     }
   }
-  # for (m in names(allouts)){
-  #   headers <- names(allouts[[m]])
-  #   fp <- file.path(dir)
-  #   if (!dir.exists(fp)) dir.create(fp, recursive = TRUE)
-  #   outcsv <- data.frame()
-  #   for(h in headers){
-  #     outcsv <- rbind(outcsv, allouts[[m]][[h]])
-  #   }
-  #   if("Header" %in% colnames(outcsv)){
-  #     outcsv <- spread(outcsv, Header, Value, fill = 0)
-  #     write.csv(outcsv, file.path(fp, paste0("x_",m,".csv")), row.names = FALSE)
-  #   }
-  # }
 }
 
 makeaggs <- function(dflist, mapping) {
@@ -885,7 +869,7 @@ find_any_header <- function(df_list, coef, indexsol = TRUE) {
 getusefulsets <- function(modelsetfile) {
   msets <- magnet_read_all_headers(modelsetfile)
 
-  setsmap <- rbind(#msets$CRPS %>% mutate(Header = "CRPS", Description = "Crops"),
+  setsmap <- bind_rows(#msets$CRPS %>% mutate(Header = "CRPS", Description = "Crops"),
                    #msets$LVSK %>% mutate(Header = "LVSK", Description = "Livestock"),
                    msets$ANI2 %>% mutate(Header = "ANI2", Description = "Livestock using land"),
                    msets$AGRI %>% mutate(Header = "AGRI", Description = "Agriculture"),
@@ -994,7 +978,7 @@ collapse_df_list <- function(dflist, newcol = "Variable"){
     d1_header <- dflist[[header]]
     d1_header[[newcol]] <- header #adding new column
     d1_header <- fncols(d1_header, hdrs) #adding missing columns with empty values
-    newdf <- rbind(newdf, d1_header)
+    newdf <- bind_rows(newdf, d1_header)
   }
 
   newdf <-newdf %>% select(-Value,Value) #This moves value to last column, just in case
