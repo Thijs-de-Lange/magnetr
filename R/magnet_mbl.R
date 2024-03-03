@@ -13,6 +13,7 @@ MBL_fixbdata <- function(bdata) {
   if(!("TD_Q" %in% names(bdata))){bdata$TD_Q <- bdata$DTRN}
   if(!("TS_Q" %in% names(bdata))){bdata$TS_Q <- bdata$STRN}
 
+  return(bdata)
 }
 
 MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NULL) {
@@ -113,7 +114,6 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
     group_by(a, r) %>%
     mutate(Value = Value / sum(Value)) %>%
     ungroup() %>%
-    mutate(Value = ifelse(is.nan(Value), 0, Value)) %>%
     rename(COMM = c,
            ACTS = a,
            REG = r)
@@ -189,7 +189,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
 
   # Imports
   # MBL_I_q(i,s,c,d) # Intermediate demand for i from s by commodity c in region d (mil USD) #;
-  MBL_I_q <- full_join(MBL_TRADE_q %>%
+  MBL_I_q <- merge(MBL_TRADE_q %>%
                          rename(i = COMM,
                                 s = REG,
                                 d = REG_2,
@@ -214,7 +214,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                 rename(i = COMM,
                        d = REG,
                        m_TOT_q = Value)) %>%
-    mutate(Value = TRADE_q * V2 / m_TOT_q) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, TRADE_q * V2 / m_TOT_q, 0)) %>%
     select(i, s, c, d, Value)
   # domestic (allowing for self-trade)
   MBL_I_q <- MBL_I_q %>%
@@ -260,7 +260,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                 rename(i = COMM,
                        d = REG,
                        m_TOT_q = Value)) %>%
-    mutate(Value = TRADE_q * m_FINP_q / m_TOT_q ) %>%
+    mutate(Value = ifelse(m_TOT_q > 0,TRADE_q * m_FINP_q / m_TOT_q, 0)) %>%
     select(i, s, d, Value)
   # domestic (allowing for self-trade)
   MBL_FP_q <- MBL_FP_q %>%
@@ -293,7 +293,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                 rename(i = COMM,
                        d = REG,
                        m_TOT_q = Value)) %>%
-    mutate(Value = TRADE_q * m_FING_q / m_TOT_q ) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, TRADE_q * m_FING_q / m_TOT_q, 0)) %>%
     select(i, s, d, Value)
   # domestic (allowing for self-trade)
   MBL_FG_q <- MBL_FG_q %>%
@@ -326,7 +326,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                 rename(i = COMM,
                        d = REG,
                        m_TOT_q = Value)) %>%
-    mutate(Value = TRADE_q * m_FINI_q / m_TOT_q ) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, TRADE_q * m_FINI_q / m_TOT_q, 0)) %>%
     select(i, s, d, Value)
   # domestic (allowing for self-trade)
   MBL_FI_q <- MBL_FI_q %>%
@@ -387,7 +387,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                 rename(i = COMM,
                        d = REG,
                        m_TOT_q = Value)) %>%
-    mutate(Value = Value / m_TOT_q) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, Value / m_TOT_q, 0)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -411,8 +411,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            COMM = c,
            REG_2 = d)
 
-
-  #MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
+#MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
   MBL_m_FP_TRS <-  MBL_m_FINP_q %>%
     rename(i = COMM,
            d = REG,
@@ -423,7 +422,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG,
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
-    mutate(Value = m_FINP_q/m_TOT_q) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, m_FINP_q/m_TOT_q,0)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -457,7 +456,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG,
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
-    mutate(Value = m_FING_q/m_TOT_q) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, m_FING_q/m_TOT_q,0)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -491,7 +490,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG,
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
-    mutate(Value = m_FINI_q/m_TOT_q) %>%
+    mutate(Value = ifelse(m_TOT_q > 0, m_FINI_q/m_TOT_q,0)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -644,7 +643,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        s = REG,
                        Q_q = Value)
     ) %>%
-    mutate(Value = 100 * (TOTDEM_q / Q_q - 1)) %>%
+    mutate(Value = ifelse(Q_q > 0, 100 * (TOTDEM_q / Q_q - 1),0)) %>%
     select(COMM = i,
            REG = s,
            Value)
@@ -674,7 +673,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG_2,
                        I_q = Value)
     ) %>%
-    mutate(Value = (Q_q/TOTDEM_q) * I_q) %>%
+    mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * I_q, 0)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -698,7 +697,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG_2,
                        FP_q = Value)
     ) %>%
-    mutate(Value = (Q_q/TOTDEM_q) * FP_q) %>%
+    mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FP_q,0)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -721,7 +720,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG_2,
                        FG_q = Value)
     ) %>%
-    mutate(Value = (Q_q/TOTDEM_q) * FG_q) %>%
+    mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FG_q,0)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -744,7 +743,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
                        d = REG_2,
                        FI_q = Value)
     ) %>%
-    mutate(Value = (Q_q/TOTDEM_q) * FI_q) %>%
+    mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FI_q,0)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -779,7 +778,7 @@ MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA) {
                 rename(c = COMM,
                        d = REG,
                        Q_q = Value)) %>%
-    mutate(Value = s_I_q / Q_q) %>%
+    mutate(Value = ifelse(Q_q > 0, s_I_q / Q_q, 0)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -865,46 +864,47 @@ MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA) {
 
   # Post-simulation checks
 
+  # Commented out since it's very slow
   # MBL_CHK_INV(i,k) # Check on Leontief inversion - should be close to identity matrix#;
-  MBL_CHK_INV <-  MBL_I_IO %>%
-    rename(i = COMREG,
-           j = COMREG_2,
-           I_IO = Value) %>%
-    left_join(.,
-              MBL_L_long_comreg %>%
-                rename(j = COMREG,
-                       k = COMREG_2,
-                       L = Value)) %>%
-    mutate(Value = I_IO * L) %>%
-    group_by(i, k) %>%
-    summarize(Value = sum(Value)) %>%
-    ungroup() %>%
-    select(COMREG = i,
-           COMREG_2 = k,
-           Value)
+  # MBL_CHK_INV <-  MBL_I_IO %>%
+  #   rename(i = COMREG,
+  #          j = COMREG_2,
+  #          I_IO = Value) %>%
+  #   left_join(.,
+  #             MBL_L_long_comreg %>%
+  #               rename(j = COMREG,
+  #                      k = COMREG_2,
+  #                      L = Value)) %>%
+  #   mutate(Value = I_IO * L) %>%
+  #   group_by(i, k) %>%
+  #   summarize(Value = sum(Value)) %>%
+  #   ungroup() %>%
+  #   select(COMREG = i,
+  #          COMREG_2 = k,
+  #          Value)
 
   # Define assertion to generate error in case of faulty inversion
 
-  rownames(MBL_IM) <- comreg
-  colnames(MBL_IM) <- comreg
+  # rownames(MBL_IM) <- comreg
+  # colnames(MBL_IM) <- comreg
 
 
   #MBL_IM_DIF # Difference from identity matrix #;
-  MBL_IM_DIF <- MBL_CHK_INV  %>%
-    rename(i = COMREG,
-           k = COMREG_2,
-           CHK_INV = Value) %>%
-    left_join(.,
-              MBL_IM %>%
-                melt() %>%
-                rename(i = Var1,
-                       k = Var2,
-                       L = value)) %>%
-    mutate(Value = CHK_INV - L) %>%
-    summarize(Value = sum(Value))
-
-  if (MBL_IM_DIF$Value < MBL_IMDIFmax){
-    print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
+  # MBL_IM_DIF <- MBL_CHK_INV  %>%
+  #   rename(i = COMREG,
+  #          k = COMREG_2,
+  #          CHK_INV = Value) %>%
+  #   left_join(.,
+  #             MBL_IM %>%
+  #               melt() %>%
+  #               rename(i = Var1,
+  #                      k = Var2,
+  #                      L = value)) %>%
+  #   mutate(Value = CHK_INV - L) %>%
+  #   summarize(Value = sum(Value))
+  #
+  # if (MBL_IM_DIF$Value < MBL_IMDIFmax){
+  #   print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
 
   return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2))
 
@@ -982,52 +982,56 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   # in a single set to create a single matrix
 
   #MBL_Q2FD(i,p,c,s,f,d) # Production i in p for final demand in d via cons. of c from s (mil USD)#;
-  MBL_Q2FD <- COMM %>%
-    rename(i = Value) %>%
-    merge(., REG %>%
-            rename(p = Value)) %>%
-    merge(. , COMM %>%
-            rename(c = Value)) %>%
-    merge(. , REG %>%
-            rename(s = Value)) %>%
-    merge(. , FDEM %>%
-            rename(f = Value)) %>%
-    merge(. , REG %>%
-            rename(d = Value)) %>%
-    left_join(. , MBL_LI %>%
-                rename(i = COMM,
-                       p = REG,
-                       c = COMM_2,
-                       s = REG_2,
-                       LI = Value)) %>%
-    left_join(., MBL_s_FP_q %>%
-                rename(c = COMM,
-                       s = REG,
-                       d = REG_2,
-                       s_FP_q = Value) %>%
-                mutate(f = "phh")) %>%
-    left_join(., MBL_s_FG_q %>%
-                rename(c = COMM,
-                       s = REG,
-                       d = REG_2,
-                       s_FG_q = Value) %>%
-                mutate(f = "gvt")) %>%
-    left_join(., MBL_s_FI_q %>%
-                rename(c = COMM,
-                       s = REG,
-                       d = REG_2,
-                       s_FI_q = Value) %>%
-                mutate(f = "inv")) %>%
-    mutate(Value = ifelse(f == "phh", s_FP_q * LI,
-                          ifelse(f == "gvt", s_FG_q * LI,
-                                 ifelse(f == "inv", s_FI_q * LI, 0)))) %>%
-    select(COMM = i,
-           REG = p,
-           COMM_2 = c,
-           REG_2 = s,
-           FDEM = f,
-           REG_3 = d,
-           Value)
+  MBL_Q2FD <- data.frame()
+
+  # making an output format, region s is added in the loop below.
+  # This is much faster than merging all at once for bigger models
+  outputscaffold <- COMM %>% rename(i = Value) %>%
+    merge(., REG %>% rename(p = Value)) %>%
+    merge(., COMM %>% rename(c = Value)) %>%
+    merge(., FDEM %>% rename(f = Value)) %>%
+    merge(., REG %>% rename(d = Value))
+
+  for (reg in REG$Value) {
+    MBL_Q2FDpart <- outputscaffold %>%
+              mutate(s = reg) %>% # looping over s region
+      left_join(., MBL_LI %>% subset(REG_2 == reg) %>%
+                  rename(i = COMM,
+                         p = REG,
+                         c = COMM_2,
+                         s = REG_2,
+                         LI = Value)) %>%
+      left_join(., MBL_s_FP_q %>% subset(REG == reg) %>%
+                  rename(c = COMM,
+                         s = REG,
+                         d = REG_2,
+                         s_FP_q = Value) %>%
+                  mutate(f = "phh")) %>%
+      left_join(., MBL_s_FG_q %>% subset(REG == reg) %>%
+                  rename(c = COMM,
+                         s = REG,
+                         d = REG_2,
+                         s_FG_q = Value) %>%
+                  mutate(f = "gvt")) %>%
+      left_join(., MBL_s_FI_q %>% subset(REG == reg) %>%
+                  rename(c = COMM,
+                         s = REG,
+                         d = REG_2,
+                         s_FI_q = Value) %>%
+                  mutate(f = "inv")) %>%
+      mutate(Value = ifelse(f == "phh", s_FP_q * LI,
+                            ifelse(f == "gvt", s_FG_q * LI,
+                                   ifelse(f == "inv", s_FI_q * LI, 0)))) %>%
+      select(COMM = i,
+             REG = p,
+             COMM_2 = c,
+             REG_2 = s,
+             FDEM = f,
+             REG_3 = d,
+             Value)
+
+    MBL_Q2FD <- bind_rows(MBL_Q2FD, MBL_Q2FDpart)
+  }
 
   # This provides the full matrix of how production of i in region p flows to
   # final demand categories in d. Based on the Leontief inverse it captures all direct
@@ -1045,26 +1049,27 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   # equations there will be deviations. Given larg differences in size of sectors
   # we express this check in percentage terms
 
+  # commented out because it's very slow to do by default.
   # MBL_chk_FDq(i,p) # Difference beteen sum of demand and production (%) #;
-  MBL_chk_FDq <- MBL_Q2FD %>%
-    rename(i = COMM,
-           p = REG,
-           c = COMM_2,
-           s = REG_2,
-           f = FDEM,
-           d = REG_3,
-           Q2FD = Value) %>%
-    group_by(i, p) %>%
-    summarize(Q2FD = sum(Q2FD)) %>%
-    ungroup() %>%
-    left_join(. , MBL_Q_q %>%
-                rename(i = COMM,
-                       p = REG,
-                       Q_q = Value)) %>%
-    mutate(Value = 100 * (Q2FD/Q_q -1)) %>%
-    select(COMM = i,
-           REG = p,
-           Value)
+  # MBL_chk_FDq <- MBL_Q2FD %>%
+  #   rename(i = COMM,
+  #          p = REG,
+  #          c = COMM_2,
+  #          s = REG_2,
+  #          f = FDEM,
+  #          d = REG_3,
+  #          Q2FD = Value) %>%
+  #   group_by(i, p) %>%
+  #   summarize(Q2FD = sum(Q2FD)) %>%
+  #   ungroup() %>%
+  #   left_join(. , MBL_Q_q %>%
+  #               rename(i = COMM,
+  #                      p = REG,
+  #                      Q_q = Value)) %>%
+  #   mutate(Value = 100 * (Q2FD/Q_q -1)) %>%
+  #   select(COMM = i,
+  #          REG = p,
+  #          Value)
 
 
   # Express final demand as shares ----------------------------------------------------
@@ -1084,9 +1089,9 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
            d = REG_3,
            Q2FD = Value) %>%
     group_by(i, p) %>%
+    mutate(Q2FD = ifelse(is.nan(Q2FD), 0, Q2FD)) %>%
     mutate(Value = Q2FD / sum(Q2FD)) %>%
     ungroup() %>%
-    mutate(Value = ifelse(is.nan(Value), 0, Value)) %>%
     select(COMM = i,
            REG = p,
            COMM_2 = c,
@@ -1205,8 +1210,9 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
              Value)
   } else {
     # Assign intermediate input footprints to produced commodities
+    # Note WJ: I think this doesn't work because MBL_FOOTP_RW doesn't exist yet
     MBL_FOOTP_RW <- MBL_FOOTP_RW %>%
-      rbind(., MBL_COMM_SHR %>%
+      bind_rows(., MBL_COMM_SHR %>%
               rename(i = COMM,
                      k = COMM_2,
                      a = ACTS,
@@ -1291,3 +1297,41 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
   return(MBL_FOOTP_FD)
 
 }
+
+MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
+
+  ACTDAT <- list()
+
+  #Initiating footprints data with quantity production, converting to 1000 ton
+  A_FP <- GTAPDATA$PROD %>% mutate(FPRNT_A = "Quantity",
+                            Value = Value/1000) %>% select(FPRNT_A,ACTS,REG,Value)
+
+  #converting to 1000 km2)
+  ldem <- GTAPDATA$LDEM %>% group_by(ACTS,REG) %>% summarize(Value = sum(Value)/1000) %>% ungroup() %>%
+          mutate(FPRNT_A = "Land")
+  A_FP <- bind_rows(A_FP, ldem)
+
+  if("WTVL" %in% names(GTAPDATA)){
+    wtvl <- GTAPDATA$WTVL %>% mutate(FPRNT_A = "Water", Value = Value/1000000)  #converting to Million m3
+    A_FP <- bind_rows(A_FP, wtvl)
+  }
+
+  ACTDAT$A_FP <- A_FP
+
+  # Set CHNL # Channels through which products flow to final demand #
+  # By default setting highest level of detail, some other options are commented out
+  ACTDAT$CHNL <- data.frame(Value = c("Food","NonFood"))
+  # ACTDAT$FDCT <- data.frame(Value = c("TotFindDem"))
+  ACTDAT$FDCT <- data.frame(Value = c("phh", "gvt", "inv"))
+  ACTDAT$FDEM <- data.frame(Value = c("phh", "gvt", "inv"))
+  # ACTDAT$MD2F <- data.frame(Value = c("TotFindDem", "TotFindDem", "TotFindDem"))
+  ACTDAT$MD2F <- data.frame(Value = c("phh", "gvt", "inv"))
+
+  # MC2C <- data.frame(GTAPSETS$COMM) %>% mutate(MC2C = ifelse(Value %in% GTAPSETS$NONF$Value, "NonFood","Food"))
+  # This below gives highest level of detail.
+  MC2C <- data.frame(GTAPSETS$COMM) %>% mutate(MC2C = Value)
+  ACTDAT$MC2C <- data.frame(Value = MC2C$MC2C)
+
+  return(ACTDAT)
+}
+
