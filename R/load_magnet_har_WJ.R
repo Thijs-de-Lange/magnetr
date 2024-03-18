@@ -319,6 +319,8 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,
     }
   )
 
+  df <- gvc_fixbdata(df)
+
   primagri <- unique(df$NVOM$PRIM_AGRI)
   df_fn <- df
 
