@@ -326,15 +326,17 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,
 
   df_fn$DINQ <- df_fn$DINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
   df_fn$MINQ <- df_fn$MINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  df_fn$DA_Q <- df_fn$DA_Q %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  df_fn$MA_Q <- df_fn$MA_Q %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
 
   gvcdata_full_food <- getMBALflows(df_fn,threshold = threshold) %>% subset(Value > 0)
   gvcdata_food <- magnetr:::make_food_gvc(gvcdata_full_food, sets)
-  if(is.null(NCMF)){
-    NCMF <- magnetr:::generate_ncmf(gvcdata_food, df_fn)
-  }
-  gvcdata_nutrients <- magnetr:::make_nutrients_gvc(gvcdata_food,df_fn,NCMF)
+  # if(is.null(NCMF)){
+  #   NCMF <- magnetr:::generate_ncmf(gvcdata_food, df_fn)
+  # }
+  #gvcdata_nutrients <- magnetr:::make_nutrients_gvc(gvcdata_food,df_fn,NCMF)
 
-  PEFOOD <- magnetr:::make_pefood(gvcdata_nutrients)
+  #PEFOOD <- magnetr:::make_pefood(gvcdata_nutrients)
 
   # fixing sets' order
   regs <- sets$REG$Value
