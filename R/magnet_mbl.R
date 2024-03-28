@@ -909,7 +909,7 @@ MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALSE) {
       print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
   }
 
-  return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2))
+  return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2, MBL_s_IO_q))
 
 }
 
@@ -928,6 +928,7 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   MBL_L <-  MBL_InvertLeontief[[6]]
   comregmap <- MBL_InvertLeontief[[7]]
   comregmap2 <- MBL_InvertLeontief[[8]]
+  MBL_s_IO_q <- MBL_InvertLeontief[[9]] # keeping this to return in main output
 
   rm(MBL_InvertLeontief)
 
@@ -1072,7 +1073,9 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
            REG_3 = d,
            Value, Q2FD)
 
-  return(list(MBL_COMM_SHR, MBL_FD_shr))
+  MBL_s_Fall_q <- rename(MBL_s_Fall_q, FDEM = f)
+
+  return(list(MBL_COMM_SHR, MBL_FD_shr,MBL_s_IO_q, MBL_s_Fall_q,MBL_Q_q))
 
 }
 
@@ -1115,13 +1118,16 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   MBL_COMM_SHR <- ProductionShares[[1]]
   MBL_FD_shr <- ProductionShares[[2]]
+  MBL_IO_q <- ProductionShares[[3]]
+  MBL_F_q <- ProductionShares[[4]]
+  MBL_Q_q <- ProductionShares[[5]]
 
   # This filters all flows (total dollar flows) below a threshold.
   # Here 1E-6 means as default all flows bigger than a dollar.
   # This defaykt value keeps 99.9999% of the volume of flows, can be changed in function call
   MBL_FD_shr <- subset(MBL_FD_shr, abs(Q2FD) > abs(threshold)) %>% select(-Q2FD)
 
-  MBL_FD_shr_filt <- MBL_FD_shr %>% left_join(.,COMM2CHNL %>%
+  MBL_FD_shr <- MBL_FD_shr %>% left_join(.,COMM2CHNL %>%
               rename(COMM_2 = COMM)) %>%
     left_join(., FDEM2FDCAT) %>%
     group_by(COMM, REG, CHNL, REG_2, FDCAT, REG_3) %>%
@@ -1175,7 +1181,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
     # Assign activity footprints to produced commodities
     MBL_FOOTP_RW_part <- MBL_A_FPRINT_part %>%
       left_join(. ,
-                MBL_FD_shr_filt %>%
+                MBL_FD_shr %>%
                   rename(
                     i = COMM,
                     p = REG,
@@ -1255,7 +1261,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
   #MBL_FOOTP_FD(n,i,p,g,s,t,d) #Footprint n of i produced in p by channel g in s and final demand cat t in d#
   MBL_FOOTP_FD <- MBL_FOOTP_RW
 
-  return(MBL_FOOTP_FD)
+  return(list(MBL_FOOTP_FD,MBL_IO_q, MBL_F_q, MBL_Q_q,MBL_FD_shr, MBL_COMM_SHR))
 
 }
 
