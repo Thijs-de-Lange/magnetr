@@ -1266,6 +1266,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   return(list(MBL_FOOTP_FD,MBL_IO_q, MBL_F_q, MBL_Q_q,MBL_FD_shr, MBL_COMM_SHR,MBL_ACTDAT_out))
 
+
 }
 
 MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {

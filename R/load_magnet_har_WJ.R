@@ -411,8 +411,12 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,
   #               MBL_FOOTP = MBL_FOOTP_FD[[1]], MBL_IO_q = MBL_FOOTP_FD[[2]],
   #               MBL_F_q = MBL_FOOTP_FD[[3]],MBL_Q_q = MBL_FOOTP_FD[[4]])
   dfout <- list(MBL_FOOTP = MBL_FOOTP_FD[[1]], MBL_IO_q = MBL_FOOTP_FD[[2]],
+<<<<<<< HEAD
                 MBL_F_q = MBL_FOOTP_FD[[3]],MBL_Q_q = MBL_FOOTP_FD[[4]],MBL_FD_shr =MBL_FOOTP_FD[[5]], MBL_COMM_SHR = MBL_FOOTP_FD[[6]],
                 ACTDAT_AFP = ACTDAT$A_FP, MBL_ACTDAT_out = MBL_FOOTP_FD[[7]])
+=======
+                MBL_F_q = MBL_FOOTP_FD[[3]],MBL_Q_q = MBL_FOOTP_FD[[4]],MBL_FD_shr =MBL_FOOTP_FD[[5]], MBL_COMM_SHR = MBL_FOOTP_FD[[6]])
+>>>>>>> 485e36cd48f77f90152b932c3172c40fba347b8d
   dfout <- addyearandscen(dfout, year, scenname)
 
   #dfout$NCMF <- NCMF #NCMF header is only for basedata, should not have year and scen
