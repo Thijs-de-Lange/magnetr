@@ -138,11 +138,13 @@ magnet_get_scenarioinfo <- function(maindir) {
 
   getinfobasedata <- function(x){
     answertxt <- read.delim(x,header=FALSE,quote="")
-    BaseData_b <- str_trim(answertxt[6,])
+    m = match(c("Base data file"),answertxt$V1) + 1
+    BaseData_b <- str_trim(answertxt[m,])
   }
   getinfosets <- function(x){
     answertxt <- read.delim(x,header=FALSE,quote="")
-    BaseData_b <- file.path("4_MAGNET","BaseData","Sets",gsub("- ","",str_trim(answertxt[9,])))
+    m = match(c("Base data file"),answertxt$V1) + 4
+    BaseData_b <- file.path("4_MAGNET","BaseData","Sets",gsub("- ","",str_trim(answertxt[m,])))
   }
 
   getinfoperiods <- function(x){
