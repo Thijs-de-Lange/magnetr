@@ -1332,6 +1332,7 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
 
   ACTDAT$A_FP <- A_FP
 
+
   # By default setting highest level of detail, some other options are commented out
   # Set CHNL # Channels through which products flow to final demand #
   ACTDAT$MC2C <- data.frame(Value = GTAPSETS$COMM$Value)
