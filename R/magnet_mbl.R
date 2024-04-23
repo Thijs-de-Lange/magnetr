@@ -1303,7 +1303,7 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
            summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CO2eq")
   ch4 <- emisisons %>% subset(GHG == "CH4") %>% group_by(ACTS,REG) %>%
     summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CH4")
-  n2o <- emisisons %>% subset(GHG == "N2o") %>% group_by(ACTS,REG) %>%
+  n2o <- emisisons %>% subset(GHG == "N2O") %>% group_by(ACTS,REG) %>%
     summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "N20")
   co2 <- emisisons %>% subset(GHG == "CH4") %>% group_by(ACTS,REG) %>%
     summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CO2")
