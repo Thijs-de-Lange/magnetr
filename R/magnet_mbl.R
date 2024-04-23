@@ -1297,7 +1297,7 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
     GTAPDATA$QEMI <- rename(GTAPDATA$QEMI, GHG = GAS)
   }
 
-  emisisons <- GTAPDATA$QEMI %>% rename(ACTS = FUELUSER) %>% subset(ACTS %in% GTAPSETS$ACTS)
+  emisisons <- GTAPDATA$QEMI %>% rename(ACTS = FUELUSER) %>% subset(ACTS %in% GTAPSETS$ACTS$Value)
 
   co2eq <- emisisons %>% group_by(ACTS,REG) %>% #This will also include FGAS
            summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CO2eq")
