@@ -286,15 +286,15 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
       message(paste("Starting to read",scenname,"from", fullfilepath))
       magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     },
-    warning=function(cond) {
-      message("Error reading HArr file, here's the error:")
-      message(cond)
+    error=function(cond) {
+      message("Error reading HArr file, quiting loop over files")
       return(NULL)
     },
     finally={
       message("read scenario succesfully")
     }
   )
+
 
   period <- str_extract(fullfilepath,"\\d{4}-\\d{4}")
   years <- unlist(str_split(period, "-"))
