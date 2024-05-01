@@ -286,7 +286,7 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
       message(paste("Starting to read",scenname,"from", fullfilepath))
       magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     },
-    error=function(cond) {
+    warning=function(cond) {
       message("Error reading HArr file, here's the error:")
       message(cond)
       return(NULL)
