@@ -80,7 +80,7 @@ magnet_write_har <- function(dflist, outfilename) {
   # magnet_write_har(dflist ,"test.har")
   # The write har is sensitive to the order of the values related to the order of the dimensions and the code  tries to do that.
   # Use the magnet_prepdf_for_write_har to changes dimensions order manually
-
+  # If you set descriptoin attribute it will be used in the name column of the har files.
   ar <- list()
 
   if(is.data.frame(dflist)){ # If someone juts passing a single dataframe, make it work.
@@ -92,6 +92,11 @@ magnet_write_har <- function(dflist, outfilename) {
     df <- dflist[[h]]
 
     if ("value" %in% colnames(df)){df <- rename(df, Value = value)}
+
+    if(nchar(h) > 4) {
+      h <- substr(h,1,4)
+      print("warning, headers cannot be longer than 4 characters, shortening")
+    }
 
     if(ncol(df) == 1 & is.character(df$Value)){
       #This means it's a set, and writing just simple means putting the list of strings in there.
@@ -124,6 +129,8 @@ magnet_write_har <- function(dflist, outfilename) {
       dim = dimsizelist,
       dimnames = dimlist
     )
+
+    attributes(ar[[h]])$description <- attr(df,"description")
   }
 
   HARr::write_har(ar, outfilename)
