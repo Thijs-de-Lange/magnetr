@@ -559,7 +559,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
                               addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold)
 
-  df_scendata <- mergescendata(df_scendata, df_basedata)
+  df_scendata <- mergescendata(df_basedata, df_scendata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
 
   df_scendata$Solution_index <- list()
