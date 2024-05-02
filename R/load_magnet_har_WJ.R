@@ -94,9 +94,16 @@ magnet_write_har <- function(dflist, outfilename) {
     if ("value" %in% colnames(df)){df <- rename(df, Value = value)}
 
     if(nchar(h) > 4) {
+      if(is.null(attr(df,"description"))){
+        attributes(df)$description <- h
+      }
+
       h <- substr(h,1,4)
       print("warning, headers cannot be longer than 4 characters, shortening")
+
+
     }
+
 
     if(ncol(df) == 1 & is.character(df$Value)){
       #This means it's a set, and writing just simple means putting the list of strings in there.
