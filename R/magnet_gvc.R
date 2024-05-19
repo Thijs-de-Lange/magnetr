@@ -13,6 +13,23 @@ gvc_fixbdata <- function(bdata) {
   if(!("DTRN" %in% names(bdata))){bdata$DTRN <- bdata$TD_Q}
   if(!("STRN" %in% names(bdata))){bdata$STRN <- bdata$TS_Q}
 
+  if(!("TRADE_Q" %in% names(bdata))){bdata$TRAD <- bdata$TRADE_Q}
+  if(!("PROD_Q" %in% names(bdata))){bdata$PRDQ <- bdata$PROD_Q}
+  if(!("D_INT_Q" %in% names(bdata))){bdata$DINQ <- bdata$D_INT_Q}
+  if(!("M_INT_Q" %in% names(bdata))){bdata$MINQ <- bdata$M_INT_Q}
+  if(!("D_FINP_Q" %in% names(bdata))){bdata$DFNH <- bdata$D_FINP_Q}
+  if(!("M_FINP_Q" %in% names(bdata))){bdata$MFNH <- bdata$M_FINP_Q}
+  if(!("D_FING_Q" %in% names(bdata))){bdata$DFNG <- bdata$D_FING_Q}
+  if(!("M_FING_Q" %in% names(bdata))){bdata$MFNG <- bdata$M_FING_Q}
+  if(!("D_FINI_Q" %in% names(bdata))){bdata$DFNI <- bdata$D_FINI_Q}
+  if(!("M_FINI_Q" %in% names(bdata))){bdata$MFNI <- bdata$M_FINI_Q}
+  if(!("TRANSD_Q" %in% names(bdata))){bdata$DTRN <- bdata$TRANSD_Q}
+  if(!("TRANSS_Q" %in% names(bdata))){bdata$STRN <- bdata$TRANSS_Q}
+  if(("MAKEB" %in% names(bdata))){bdata$MAKB <- bdata$MAKEB}
+  if(("NQ_VOM" %in% names(bdata))){bdata$NVOM <- bdata$NQ_VOM}
+
+
+
   return(bdata)
 }
 
@@ -520,6 +537,8 @@ make_food_gvc <- function(gvcdata, sets){
 # }
 
 make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
+
+  if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <- rename(NCMf, COMM = PRIM_AGRI)}
   NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
   population <- bdata$POP %>% rename(REG_3 = REG, POP = Value)
   gvcdata_nutrients <- gvcdata %>%
