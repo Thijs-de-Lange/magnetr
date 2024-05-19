@@ -538,8 +538,11 @@ make_food_gvc <- function(gvcdata, sets){
 
 make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
 
-  if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <- rename(NCMf, COMM = PRIM_AGRI)}
-  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
+  if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <- rename(NCMF, COMM = PRIM_AGRI)}
+  if("NUTRIENTS" %in% colnames(NVOM)){NVOM <- rename(NVOM, NUTRIENTS0 = NUTRIENTS)}
+  NVOM <- bdata$NVOM
+  NVOM <- NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) %>% subset(NUTRIENTS0 != "lanU")
+
   population <- bdata$POP %>% rename(REG_3 = REG, POP = Value)
   gvcdata_nutrients <- gvcdata %>%
     left_join(NVOM) %>% left_join(NCMF)  %>%
@@ -552,11 +555,11 @@ make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
 
 make_pefood <- function(gvcdata_nutrients){
   PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlowPerCapDay) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOOD <- with(PEFOOD, PEFOOD[order(HFOOD,PRIM_AGRI),])
 
   PEFOODTOT <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlow) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOODTOT <- with(PEFOODTOT, PEFOODTOT[order(HFOOD,PRIM_AGRI),])
 
   pefoodout <- list()
