@@ -554,6 +554,9 @@ make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
 }
 
 make_pefood <- function(gvcdata_nutrients){
+
+  if("NUTRIENTS" %in% colnames(gvcdata_nutrients)){gvcdata_nutrients <- rename(gvcdata_nutrients, NUTRIENTS0 = NUTRIENTS)}
+
   PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlowPerCapDay) %>%
     group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOOD <- with(PEFOOD, PEFOOD[order(HFOOD,PRIM_AGRI),])
