@@ -525,7 +525,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            I_q = Value) %>%
     left_join(. ,
               MBL_m_I_TRNS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        c = COMM,
                        d = REG_2,
@@ -543,7 +543,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FP_q = Value) %>%
     left_join(., MBL_m_FP_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FP_TRS = Value)) %>%
@@ -559,7 +559,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FG_q = Value) %>%
     left_join(., MBL_m_FG_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FG_TRS = Value)) %>%
@@ -576,7 +576,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FI_q = Value) %>%
     left_join(., MBL_m_FI_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FI_TRS = Value)) %>%
