@@ -1125,15 +1125,19 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
   # This filters all flows (total dollar flows) below a threshold.
   # Here 1E-6 means as default all flows bigger than a dollar.
   # This defaykt value keeps 99.9999% of the volume of flows, can be changed in function call
-  MBL_FD_shr <- subset(MBL_FD_shr, abs(Q2FD) > abs(threshold)) %>% select(-Q2FD)
+  MBL_FD_shr <- subset(MBL_FD_shr, abs(Q2FD) > abs(threshold))
 
   MBL_FD_shr <- MBL_FD_shr %>% left_join(.,COMM2CHNL %>%
               rename(COMM_2 = COMM)) %>%
     left_join(., FDEM2FDCAT) %>%
     group_by(COMM, REG, CHNL, REG_2, FDCAT, REG_3) %>%
-    summarize(Value = sum(Value)) %>%
+    summarize(Value = sum(Value),Q2FD = sum(Q2FD)) %>%
     ungroup()
 
+  MBL_FD_Q2FD <- select(MBL_FD_shr,-Value) %>% # This will add to the footprint export, and gives the dollar flows
+    mutate(FPRNT = "mnUSD") %>% rename(Value = Q2FD) # should have same dimensions as footprint output
+
+  MBL_FD_shr <- MBL_FD_shr %>% select(-Q2FD)
   # Read data on foot print indicators -------------------------------------------
 
   # MBL_A_FPRINT(n,a,p)  # Activity level footprints (various units) #;
@@ -1262,7 +1266,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
   }
 
   #MBL_FOOTP_FD(n,i,p,g,s,t,d) #Footprint n of i produced in p by channel g in s and final demand cat t in d#
-  MBL_FOOTP_FD <- MBL_FOOTP_RW
+  MBL_FOOTP_FD <- MBL_FOOTP_RW %>% bind_rows(MBL_FD_Q2FD) # Adding dollar flows
 
   return(list(MBL_FOOTP_FD,MBL_IO_q, MBL_F_q, MBL_Q_q,MBL_FD_shr, MBL_COMM_SHR,MBL_ACTDAT_out))
 
@@ -1274,6 +1278,8 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
   ACTDAT <- list()
 
   COMM2ACTS <- cbind(rename(GTAPSETS$MC2S,ACTS = Value), rename(GTAPSETS$COMM, COMM = Value))
+
+
 
   #Initiating footprints data with quantity production, converting to 1000 ton
   A_FP <- GTAPDATA$PROD %>% mutate(FPRNT_A = "Quantity",
