@@ -452,7 +452,7 @@ addyearandscen <- function(df, year, scenname){
   return(df)
 }
 
-readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL, threshold = 1E-6) {
+readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL, threshold = 1E-6, years_sel = NULL) {
   # Reads all files in a scenario for a given scenario name.
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
@@ -465,6 +465,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
 
   df_update <- list()
   for (f in updatefiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -473,6 +475,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_update_view <- list()
   for (f in updateviewfiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -481,6 +485,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_update_tax <- list()
   for (f in updatetaxfiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -489,6 +495,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_solution <- list()
   for (f in solfiles) {
+    #for soluation file we always keep all years
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -500,6 +507,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   if(addgvcinfo){
     for (f in updatefiles) {
       year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+      if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
       dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
       for (n in names(dftmp)){
@@ -560,7 +568,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 1E-6){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 1E-6, years_sel = NULL){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
@@ -571,7 +579,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
                               readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold)
   NCMF = df_basedata$GVC$NCMF
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
-                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold)
+                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold, years_sel = years_sel)
 
   df_scendata <- mergescendata(df_basedata, df_scendata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
