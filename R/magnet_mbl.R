@@ -1332,7 +1332,7 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
     A_FP <- bind_rows(A_FP, wtvl)
   }
   if("PDEM" %in% names(GTAPDATA)){
-    pdem <- GTAPDATA$PDEM %>% subset(COMM == "fert_n") %>% select(-COMM) %>% mutate(FPRNT_A = "Pesticides")
+    pdem <- GTAPDATA$PDEM %>% subset(COMM == "pest") %>% select(-COMM) %>% mutate(FPRNT_A = "Pesticides")
     A_FP <- bind_rows(A_FP, pdem)
   }
 
