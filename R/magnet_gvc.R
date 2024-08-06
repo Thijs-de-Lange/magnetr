@@ -13,6 +13,7 @@ gvc_fixbdata <- function(bdata) {
   if(!("DTRN" %in% names(bdata))){bdata$DTRN <- bdata$TD_Q}
   if(!("STRN" %in% names(bdata))){bdata$STRN <- bdata$TS_Q}
 
+  return(bdata)
 }
 
 gvc_prepmatbal <- function(bdata, threshold = 0, useloop = FALSE){
@@ -24,8 +25,8 @@ gvc_prepmatbal <- function(bdata, threshold = 0, useloop = FALSE){
   comms <- unique(bdata$MAKB$COMM)
 
   # this is the code copied from PostSimCalc/Materialbalances.gmp, which collects the data form basedata
-  chk_0ITRADE <- sum(subset(bdata$VFOB, REG == REG_2)$Value)
-  if(chk_0ITRADE >0){stop("Check that your data hase no internal trade #")}
+#  chk_0ITRADE <- sum(subset(bdata$VFOB, REG == REG_2)$Value)
+#  if(chk_0ITRADE >0){stop("Check that your data hase no internal trade #")}
 
   # COMM_SHR(c,a,r) # Commodity share in activity input use #;
   COMM_SHR <- bdata$MAKB %>% group_by(ACTS,REG) %>% mutate(Value = Value/sum(Value)) %>% ungroup() %>%
@@ -369,10 +370,23 @@ getcommregindicators <- function(sets, bdata, aggsets = FALSE) {
   fert_p <- subset(fertdem2, FERTT == "fert_p") %>% select(-FERTT) %>% mutate(Indicator = "Fert_P", Unit = "ton P2O5")
   fert_n <- subset(fertdem2, FERTT == "fert_n") %>% select(-FERTT) %>% mutate(Indicator = "Fert_N", Unit = "ton N")
 
-  landcomm <- unique(subset(ldem, Value > 0)$COMM)
-  pest <- rbind(bdata$DINQ, bdata$MINQ) %>%
-    subset(COMM %in% c("chm", "chem", "chmbphplas") & ACTS %in% landcomm) %>% select(-COMM) %>% rename(COMM = ACTS) %>%
-    group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>% mutate(Indicator = "Pest_$", Unit = "dollar")
+  # landcomm <- unique(subset(ldem, Value > 0)$COMM)
+  # pest <- rbind(bdata$DINQ, bdata$MINQ) %>%
+  #   subset(COMM %in% c("chm", "chem", "chmbphplas") & ACTS %in% landcomm) %>% select(-COMM) %>% rename(COMM = ACTS) %>%
+  #   group_by(COMM,REG) %>% summarize(Value = sum(Value)) %>% mutate(Indicator = "Pest_$", Unit = "dollar")
+
+
+  pestfile <- system.file("extdata", "PESTDEM.HAR", package="magnetr")
+  pestdem <- magnet_read_all_headers(pestfile)$PCOQ #fertilzer use in tonnes, but by gtap agg on 160 regions.
+  pestdem <- rename(pestdem, DCOMM = A_PACT) %>% select(-PESTT) %>%
+    mutate(DCOMM = gsub("^a_","",DCOMM))
+
+  pestdem2 <- makeagg_singledf(pestdem, select(commmap, DCOMM,COMM)) %>% makeagg_singledf(select(regmap, DREG,REG)) %>%
+    rename(COMM = DCOMM, REG = DREG) %>% ungroup() %>% subset(REG %in% regmap$REG)
+
+  pest <- pestdem2 %>% mutate(Indicator = "Pesticides", Unit = "1000 ton")
+
+
   MBALIndicators <- bind_rows(MBALIndicators, fert_n,fert_p,pest)
 
   if(typeof(aggsets) == "list") {
