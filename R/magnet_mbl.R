@@ -111,13 +111,13 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
     rename(c = COMM,
            a = ACTS,
            r = REG) %>%
-    group_by(a, r) %>%
+    group_by(a, r) %>%  # group by activity and region
     mutate(Value = Value / sum(Value)) %>%
     ungroup() %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     rename(COMM = c,
            ACTS = a,
            REG = r)
-
 
   COMM_2 <- data.frame(MBL_VAL_SHR$COMM) %>%
     rename(COMM_2 = MBL_VAL_SHR.COMM) %>%
@@ -189,7 +189,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
 
   # Imports
   # MBL_I_q(i,s,c,d) # Intermediate demand for i from s by commodity c in region d (mil USD) #;
-  MBL_I_q <- merge(MBL_TRADE_q %>%
+  MBL_I_q <- full_join(MBL_TRADE_q %>%
                          rename(i = COMM,
                                 s = REG,
                                 d = REG_2,
@@ -525,7 +525,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            I_q = Value) %>%
     left_join(. ,
               MBL_m_I_TRNS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        c = COMM,
                        d = REG_2,
@@ -543,7 +543,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FP_q = Value) %>%
     left_join(., MBL_m_FP_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FP_TRS = Value)) %>%
@@ -559,7 +559,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FG_q = Value) %>%
     left_join(., MBL_m_FG_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FG_TRS = Value)) %>%
@@ -576,7 +576,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
            d = REG_2,
            FI_q = Value) %>%
     left_join(., MBL_m_FI_TRS %>%
-                rename(m = MARG,
+                rename(i = MARG,
                        s = REG,
                        d = REG_2,
                        m_FI_TRS = Value)) %>%
@@ -752,10 +752,12 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
   return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_s_I_q))
 }
 
-MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA) {
+MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALSE) {
 
   # Load results from MBL_ConstructBalances -----------------------------------------
+  print("start routine MBL_ConstructBalances")
   ConstructBalances <- MBL_ConstructBalances(GTAPSETS, ACTDAT, GTAPDATA)
+  print("finished routine MBL_ConstructBalances")
 
   MBL_COMM_SHR <- ConstructBalances[[1]]
   MBL_Q_q <- ConstructBalances[[2]]
@@ -861,59 +863,62 @@ MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA) {
     tibble::rownames_to_column(., "COMREG") %>%
     pivot_longer(cols = comreg, names_to = "COMREG_2", values_to = "Value")
 
-
   # Post-simulation checks
 
-  # Commented out since it's very slow
-  # MBL_CHK_INV(i,k) # Check on Leontief inversion - should be close to identity matrix#;
-  # MBL_CHK_INV <-  MBL_I_IO %>%
-  #   rename(i = COMREG,
-  #          j = COMREG_2,
-  #          I_IO = Value) %>%
-  #   left_join(.,
-  #             MBL_L_long_comreg %>%
-  #               rename(j = COMREG,
-  #                      k = COMREG_2,
-  #                      L = Value)) %>%
-  #   mutate(Value = I_IO * L) %>%
-  #   group_by(i, k) %>%
-  #   summarize(Value = sum(Value)) %>%
-  #   ungroup() %>%
-  #   select(COMREG = i,
-  #          COMREG_2 = k,
-  #          Value)
+  # This is very slow and crashes with larger models
+  if(Check_inv){
+    #MBL_CHK_INV(i,k) # Check on Leontief inversion - should be close to identity matrix#;
+    MBL_CHK_INV <-  MBL_I_IO %>%
+      rename(i = COMREG,
+             j = COMREG_2,
+             I_IO = Value) %>%
+      left_join(.,
+                MBL_L_long_comreg %>%
+                  rename(j = COMREG,
+                         k = COMREG_2,
+                         L = Value)) %>%
+      mutate(Value = I_IO * L) %>%
+      group_by(i, k) %>%
+      summarize(Value = sum(Value)) %>%
+      ungroup() %>%
+      select(COMREG = i,
+             COMREG_2 = k,
+             Value)
 
-  # Define assertion to generate error in case of faulty inversion
+    # Define assertion to generate error in case of faulty inversion
 
-  # rownames(MBL_IM) <- comreg
-  # colnames(MBL_IM) <- comreg
+    rownames(MBL_IM) <- comreg
+    colnames(MBL_IM) <- comreg
 
 
-  #MBL_IM_DIF # Difference from identity matrix #;
-  # MBL_IM_DIF <- MBL_CHK_INV  %>%
-  #   rename(i = COMREG,
-  #          k = COMREG_2,
-  #          CHK_INV = Value) %>%
-  #   left_join(.,
-  #             MBL_IM %>%
-  #               melt() %>%
-  #               rename(i = Var1,
-  #                      k = Var2,
-  #                      L = value)) %>%
-  #   mutate(Value = CHK_INV - L) %>%
-  #   summarize(Value = sum(Value))
-  #
-  # if (MBL_IM_DIF$Value < MBL_IMDIFmax){
-  #   print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
+    #MBL_IM_DIF # Difference from identity matrix #;
+    MBL_IM_DIF <- MBL_CHK_INV  %>%
+      rename(i = COMREG,
+             k = COMREG_2,
+             CHK_INV = Value) %>%
+      left_join(.,
+                MBL_IM %>%
+                  melt() %>%
+                  rename(i = Var1,
+                         k = Var2,
+                         L = value)) %>%
+      mutate(Value = CHK_INV - L) %>%
+      summarize(Value = sum(Value))
 
-  return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2))
+    if (MBL_IM_DIF$Value < MBL_IMDIFmax){
+      print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
+  }
+
+  return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2, MBL_s_IO_q))
 
 }
 
 MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
 
   # Load MBL_INvertLeontief
+  print("start routine MBL_InvertLeontief")
   MBL_InvertLeontief <- MBL_InvertLeontief(GTAPSETS, ACTDAT, GTAPDATA)
+  print("finished routine MBL_InvertLeontief")
 
   MBL_COMM_SHR <- MBL_InvertLeontief[[1]]
   MBL_Q_q <- MBL_InvertLeontief[[2]]
@@ -923,6 +928,9 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   MBL_L <-  MBL_InvertLeontief[[6]]
   comregmap <- MBL_InvertLeontief[[7]]
   comregmap2 <- MBL_InvertLeontief[[8]]
+  MBL_s_IO_q <- MBL_InvertLeontief[[9]] # keeping this to return in main output
+
+  rm(MBL_InvertLeontief)
 
   # Standard GTAP sets ----------------------------------------------------------
 
@@ -941,26 +949,6 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   # Set FDEM # Final demand categories # (phh,gvt,inv);
   Value <- c("phh", "gvt", "inv")
   FDEM <- data.frame(Value)
-
-  # note that + enforces sets to be disjoint - so footprints are eiher defined at
-  # activity or at intermediate input level
-
-  # Set CHNL # Channels through which products flow to final demand #
-  CHNL <- ACTDAT$MC2C
-  # Mapping COMM2CHNL from COMM to CHNL
-  COMM2CHNL <- data.frame(ACTDAT$MC2C %>%
-                            rename(CHNL = Value),
-                          COMM %>%
-                            rename(COMM = Value))
-
-  # Set FDCAT # Grouping of final demand categories #
-  FDCAT <- ACTDAT$FDCT
-  # Mapping FDEM2FDCAT from FDEM to FDCAT
-  FDEM2FDCAT <- data.frame(ACTDAT$MD2F %>%
-                             rename(FDCAT = Value),
-                           FDEM %>%
-                             rename(FDEM = Value))
-
 
   # Data preparation -----------------------------------------------------------
 
@@ -984,55 +972,40 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   #MBL_Q2FD(i,p,c,s,f,d) # Production i in p for final demand in d via cons. of c from s (mil USD)#;
   MBL_Q2FD <- data.frame()
 
-  # making an output format, region s is added in the loop below.
-  # This is much faster than merging all at once for bigger models
-  outputscaffold <- COMM %>% rename(i = Value) %>%
-    merge(., REG %>% rename(p = Value)) %>%
-    merge(., COMM %>% rename(c = Value)) %>%
-    merge(., FDEM %>% rename(f = Value)) %>%
-    merge(., REG %>% rename(d = Value))
+  print("start creating MBL_Q2FD output")
+
+  MBL_s_Fall_q <- bind_rows(
+                  mutate(MBL_s_FP_q,f="phh"),
+                  mutate(MBL_s_FG_q,f="gvt"),
+                  mutate(MBL_s_FI_q,f="inv"))
 
   for (reg in REG$Value) {
-    MBL_Q2FDpart <- outputscaffold %>%
-              mutate(s = reg) %>% # looping over s region
-      left_join(., MBL_LI %>% subset(REG_2 == reg) %>%
+    print(paste("adding MBL_Q2FD output for region", reg))
+    MBL_Q2FDpart <-
+      full_join(MBL_LI %>% subset(REG_2 == reg) %>%
                   rename(i = COMM,
                          p = REG,
                          c = COMM_2,
                          s = REG_2,
-                         LI = Value)) %>%
-      left_join(., MBL_s_FP_q %>% subset(REG == reg) %>%
+                         LI = Value),
+      MBL_s_Fall_q %>% subset(REG == reg) %>%
                   rename(c = COMM,
                          s = REG,
                          d = REG_2,
-                         s_FP_q = Value) %>%
-                  mutate(f = "phh")) %>%
-      left_join(., MBL_s_FG_q %>% subset(REG == reg) %>%
-                  rename(c = COMM,
-                         s = REG,
-                         d = REG_2,
-                         s_FG_q = Value) %>%
-                  mutate(f = "gvt")) %>%
-      left_join(., MBL_s_FI_q %>% subset(REG == reg) %>%
-                  rename(c = COMM,
-                         s = REG,
-                         d = REG_2,
-                         s_FI_q = Value) %>%
-                  mutate(f = "inv")) %>%
-      mutate(Value = ifelse(f == "phh", s_FP_q * LI,
-                            ifelse(f == "gvt", s_FG_q * LI,
-                                   ifelse(f == "inv", s_FI_q * LI, 0)))) %>%
+                         s_Fall_q = Value)) %>%
+      mutate(Value = s_Fall_q * LI) %>%
       select(COMM = i,
              REG = p,
              COMM_2 = c,
              REG_2 = s,
              FDEM = f,
              REG_3 = d,
-             Value)
+             Value) %>%
+
+      subset(Value > 0)
 
     MBL_Q2FD <- bind_rows(MBL_Q2FD, MBL_Q2FDpart)
   }
-
   # This provides the full matrix of how production of i in region p flows to
   # final demand categories in d. Based on the Leontief inverse it captures all direct
   # and indirect flows through the global economy. Of these flows only the producer
@@ -1049,8 +1022,8 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
   # equations there will be deviations. Given larg differences in size of sectors
   # we express this check in percentage terms
 
-  # commented out because it's very slow to do by default.
-  # MBL_chk_FDq(i,p) # Difference beteen sum of demand and production (%) #;
+
+  # # MBL_chk_FDq(i,p) # Difference beteen sum of demand and production (%) #;
   # MBL_chk_FDq <- MBL_Q2FD %>%
   #   rename(i = COMM,
   #          p = REG,
@@ -1098,14 +1071,15 @@ MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
            REG_2 = s,
            FDEM = f,
            REG_3 = d,
-           Value)
+           Value, Q2FD)
 
-  return(list(MBL_COMM_SHR, MBL_FD_shr))
+  MBL_s_Fall_q <- rename(MBL_s_Fall_q, FDEM = f)
+
+  return(list(MBL_COMM_SHR, MBL_FD_shr,MBL_s_IO_q, MBL_s_Fall_q,MBL_Q_q))
 
 }
 
-
-MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
+MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   # Standard GTAP sets ----------------------------------------------------------
 
@@ -1138,14 +1112,33 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
                              rename(FDEM = Value))
 
   # Load MBL_ProductionShares ----------------------------------------------------
+  print("start routine MBL_ProductionShares")
   ProductionShares <- MBL_ProductionShares(GTAPSETS, ACTDAT, GTAPDATA)
+  print("finished routine MBL_ProductionShares")
 
   MBL_COMM_SHR <- ProductionShares[[1]]
   MBL_FD_shr <- ProductionShares[[2]]
+  MBL_IO_q <- ProductionShares[[3]]
+  MBL_F_q <- ProductionShares[[4]]
+  MBL_Q_q <- ProductionShares[[5]]
 
+  # This filters all flows (total dollar flows) below a threshold.
+  # Here 1E-6 means as default all flows bigger than a dollar.
+  # This defaykt value keeps 99.9999% of the volume of flows, can be changed in function call
+  MBL_FD_shr <- subset(MBL_FD_shr, abs(Q2FD) > abs(threshold))
+
+  MBL_FD_shr <- MBL_FD_shr %>% left_join(.,COMM2CHNL %>%
+              rename(COMM_2 = COMM)) %>%
+    left_join(., FDEM2FDCAT) %>%
+    group_by(COMM, REG, CHNL, REG_2, FDCAT, REG_3) %>%
+    summarize(Value = sum(Value),Q2FD = sum(Q2FD)) %>%
+    ungroup()
+
+  MBL_FD_Q2FD <- select(MBL_FD_shr,-Value) %>% # This will add to the footprint export, and gives the dollar flows
+    mutate(FPRNT = "mnUSD") %>% rename(Value = Q2FD) # should have same dimensions as footprint output
+
+  MBL_FD_shr <- MBL_FD_shr %>% select(-Q2FD)
   # Read data on foot print indicators -------------------------------------------
-
-  # Cannot read from file in post-sim after initialization so short intermezzo
 
   # MBL_A_FPRINT(n,a,p)  # Activity level footprints (various units) #;
   MBL_A_FPRINT <- ACTDAT$A_FP %>%
@@ -1161,64 +1154,75 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
 
   #MBL_FOOTP_RW(n,i,p,g,s,t,d)
   #Footprint n for i produced in p by channel in s and final demand cat t in d#;
-  if (dim(MBL_I_FPRINT)[1] == 0) {
-    # Assign activity footprints to produced commodities
-    MBL_FOOTP_RW <-  MBL_COMM_SHR %>%
+  MBL_FOOTP_RW <- data.frame()
+  MBL_ACTDAT_out <- data.frame()
+  #  loop over footprints indicators to make the code a bit faster
+  for (fp in unique(MBL_A_FPRINT$FPRNT_A)) {
+
+    if(is.null(fp)){next}
+    print(paste("adding footprint for ", fp))
+
+    MBL_A_FPRINT_part <- MBL_COMM_SHR %>%
       rename(i = COMM,
              k = COMM_2,
              a = ACTS,
              p = REG,
              COMM_SHR = Value) %>%
-      left_join(., MBL_A_FPRINT %>%
+      left_join(., MBL_A_FPRINT %>% subset(FPRNT_A == fp) %>%
                   rename(n = FPRNT_A,
                          a = ACTS,
                          p = REG,
                          FPRINT_A_Value = Value)) %>%
       mutate(Value = COMM_SHR * FPRINT_A_Value) %>%
+      # Apply filter to remove commodities in i with no footprint data
+      subset(Value != 0) %>%
       select(-k) %>%
       unique() %>%
       group_by(n,i,p) %>%
       summarize(Value = sum(Value)) %>%
-      ungroup() %>%
+      ungroup()
+
+    MBL_ACTDAT_out <- bind_rows(MBL_ACTDAT_out,
+                                rename(MBL_A_FPRINT_part, FPRNT = n, COMM = i, REG = p))
+
+    # Assign activity footprints to produced commodities
+    MBL_FOOTP_RW_part <- MBL_A_FPRINT_part %>%
       left_join(. ,
                 MBL_FD_shr %>%
                   rename(
                     i = COMM,
                     p = REG,
-                    c = COMM_2,
+                    g = CHNL,
                     s = REG_2,
-                    f = FDEM,
+                    t = FDCAT,
                     d = REG_3,
-                    FD_shr = Value) ) %>%
+                    FD_shr = Value)) %>%
       mutate(Value = FD_shr * Value) %>%
-      left_join(., COMM2CHNL %>%
-                  rename(c = COMM,
-                         g = CHNL)) %>%
-      left_join(., FDEM2FDCAT %>%
-                  rename(f = FDEM,
-                         t = FDCAT)) %>%
-      group_by(n, i, p, g, s, t, d) %>%
-      summarize(Value = sum(Value)) %>%
-      ungroup() %>%
-      select(FPRNT_A = n,
+      select(FPRNT = n,
              COMM = i,
              REG = p,
              CHNL = g,
              REG_2 = s,
              FDCAT = t,
              REG_3 = d,
-             Value)
-  } else {
+             Value) %>%
+      na.omit() # a bit dangerous, but if MBL_A_FPRINT_part has a high filter on it some sectors can drop out and cause NAs
+
+    MBL_FOOTP_RW <- bind_rows(MBL_FOOTP_RW, MBL_FOOTP_RW_part)
+  }
+
+  for (fp in unique(MBL_A_FPRINT$FPRNT_I)) {
+    if(is.null(fp)){next}
     # Assign intermediate input footprints to produced commodities
-    # Note WJ: I think this doesn't work because MBL_FOOTP_RW doesn't exist yet
-    MBL_FOOTP_RW <- MBL_FOOTP_RW %>%
-      bind_rows(., MBL_COMM_SHR %>%
+    # Note WJvZ: This is very slow, look at FPRINT_A for inspiration for fixing. But it's not used now
+    print(paste("adding footprint for ", fp,"Warning, this code is slow"))
+    MBL_FOOTP_RW_part <- MBL_COMM_SHR %>%
               rename(i = COMM,
                      k = COMM_2,
                      a = ACTS,
                      p = REG,
                      COMM_SHR = Value) %>%
-              left_join(., MBL_I_FPRINT %>%
+              left_join(., MBL_I_FPRINT %>% subset(FPRNT_I == fp) %>%
                           rename(n = FPRNT_I,
                                  a = ACTS,
                                  p = REG,
@@ -1249,52 +1253,23 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA){
               group_by(n, i, p, g, s, t, d) %>%
               summarize(Value = sum(Value)) %>%
               ungroup() %>%
-              select(FPRNT_I = n,
+              select(FPRNT = n,
                      COMM = i,
                      REG = p,
                      CHNL = g,
                      REG_2 = s,
                      FDCAT = t,
                      REG_3 = d,
-                     Value))
+                     Value)
+
+    MBL_FOOTP_RW <- bind_rows(MBL_FOOTP_RW, MBL_FOOTP_RW_part)
   }
 
-
   #MBL_FOOTP_FD(n,i,p,g,s,t,d) #Footprint n of i produced in p by channel g in s and final demand cat t in d#
-  MBL_FOOTP_FD <- MBL_FOOTP_RW %>%
-    rename(n = FPRNT_A,
-           i = COMM,
-           p = REG,
-           g = CHNL,
-           s = REG_2,
-           t = FDCAT,
-           d = REG_3) %>%
-    # Apply filter to remove commodities in i with no footprint data
-    group_by(i) %>%
-    mutate(sum_Value = sum(Value)) %>%
-    ungroup() %>%
-    filter(sum_Value != 0)
+  MBL_FOOTP_FD <- MBL_FOOTP_RW %>% bind_rows(MBL_FD_Q2FD) # Adding dollar flows
 
-  # Define produced commodities with footprint data
+  return(list(MBL_FOOTP_FD,MBL_IO_q, MBL_F_q, MBL_Q_q,MBL_FD_shr, MBL_COMM_SHR,MBL_ACTDAT_out))
 
-  #MBL_FPCOMM # Produced commodities with footprint data #
-  MBL_FPCOMM <- MBL_FOOTP_FD$i %>%
-    unique()
-
-  # Apply filter to remove commodities in i with no footprint data
-
-  # MBL_FOOTP_FD(n,i,p,g,s,t,d) #Footprint n of i produced in p by channel g in s and final demand cat t in d#
-  MBL_FOOTP_FD <- MBL_FOOTP_FD %>%
-    select(FPRNT = n,
-           COMM = i,
-           REG = p,
-           CHNL = g,
-           REG_2 = s,
-           FDCAT = t,
-           REG_3 = d,
-           Value)
-
-  return(MBL_FOOTP_FD)
 
 }
 
@@ -1302,36 +1277,95 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
 
   ACTDAT <- list()
 
+  COMM2ACTS <- cbind(rename(GTAPSETS$MC2S,ACTS = Value), rename(GTAPSETS$COMM, COMM = Value))
+
+
+
   #Initiating footprints data with quantity production, converting to 1000 ton
   A_FP <- GTAPDATA$PROD %>% mutate(FPRNT_A = "Quantity",
                             Value = Value/1000) %>% select(FPRNT_A,ACTS,REG,Value)
 
   #converting to 1000 km2)
-  ldem <- GTAPDATA$LDEM %>% group_by(ACTS,REG) %>% summarize(Value = sum(Value)/1000) %>% ungroup() %>%
+  ldem <- GTAPDATA$LDEM %>% group_by(ACTS,REG) %>%
+          summarize(Value = sum(Value)/1000) %>% ungroup() %>%
           mutate(FPRNT_A = "Land")
   A_FP <- bind_rows(A_FP, ldem)
+  pasture <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$LVST$Value,Value,0)) %>% mutate(FPRNT_A = "Pasture")
+  A_FP <- bind_rows(A_FP, pasture)
+  cropland <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$LVST$Value,0,Value)) %>% mutate(FPRNT_A = "Cropland")
+  A_FP <- bind_rows(A_FP, cropland)
+
+  qlab <- GTAPDATA$QLAB  %>% group_by(ACTS,REG) %>%
+          summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "Labor")
+  A_FP <- bind_rows(A_FP, qlab)
+
+  if("GAS" %in% colnames(GTAPDATA$QEMI)) { #name is different in updates.
+    GTAPDATA$QEMI <- rename(GTAPDATA$QEMI, GHG = GAS)
+  }
+
+  emisisons <- GTAPDATA$QEMI %>% rename(ACTS = FUELUSER) %>% subset(ACTS %in% GTAPSETS$ACTS$Value)
+
+  co2eq <- emisisons %>% group_by(ACTS,REG) %>% #This will also include FGAS
+           summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CO2eq")
+  ch4 <- emisisons %>% subset(GHG == "CH4") %>% group_by(ACTS,REG) %>%
+    summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CH4")
+  n2o <- emisisons %>% subset(GHG == "N2O") %>% group_by(ACTS,REG) %>%
+    summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "N2O")
+  co2 <- emisisons %>% subset(GHG == "CO2") %>% group_by(ACTS,REG) %>%
+    summarize(Value = sum(Value)) %>% ungroup() %>% mutate(FPRNT_A = "CO2")
+  A_FP <- bind_rows(A_FP, co2eq, co2, ch4, n2o)
+
+  if("fert_p" %in% GTAPDATA$FDEM$COMM) {
+    fert_p <- subset(GTAPDATA$FDEM, COMM == "fert_p") %>% select(-COMM) %>% mutate(FPRNT_A = "Fert_P")
+    A_FP <- bind_rows(A_FP, fert_p)
+  }
+  if("fert_n" %in% GTAPDATA$FDEM$COMM) {
+    fert_n <- subset(GTAPDATA$FDEM, COMM == "fert_n") %>% select(-COMM) %>% mutate(FPRNT_A = "Fert_N")
+    A_FP <- bind_rows(A_FP, fert_n)
+  } else if("fert" %in% GTAPDATA$FDEM$COMM) {
+    fert <- subset(GTAPDATA$FDEM, COMM == "fert") %>% select(-COMM) %>% mutate(FPRNT_A = "Fert")
+    A_FP <- bind_rows(A_FP, fert)
+  }
 
   if("WTVL" %in% names(GTAPDATA)){
     wtvl <- GTAPDATA$WTVL %>% mutate(FPRNT_A = "Water", Value = Value/1000000)  #converting to Million m3
     A_FP <- bind_rows(A_FP, wtvl)
   }
+  if("PDEM" %in% names(GTAPDATA)){
+    pdem <- GTAPDATA$PDEM %>% subset(COMM == "pest") %>% select(-COMM) %>% mutate(FPRNT_A = "Pesticides")
+    A_FP <- bind_rows(A_FP, pdem)
+  }
 
   ACTDAT$A_FP <- A_FP
 
-  # Set CHNL # Channels through which products flow to final demand #
+
   # By default setting highest level of detail, some other options are commented out
-  ACTDAT$CHNL <- data.frame(Value = c("Food","NonFood"))
-  # ACTDAT$FDCT <- data.frame(Value = c("TotFindDem"))
-  ACTDAT$FDCT <- data.frame(Value = c("phh", "gvt", "inv"))
-  ACTDAT$FDEM <- data.frame(Value = c("phh", "gvt", "inv"))
-  # ACTDAT$MD2F <- data.frame(Value = c("TotFindDem", "TotFindDem", "TotFindDem"))
+  # Set CHNL # Channels through which products flow to final demand #
+  ACTDAT$MC2C <- data.frame(Value = GTAPSETS$COMM$Value)
+  # Set FDCAT # Grouping of final demand categories #
   ACTDAT$MD2F <- data.frame(Value = c("phh", "gvt", "inv"))
 
+  # ACTDAT$MD2F <- data.frame(Value = c("TotFindDem", "TotFindDem", "TotFindDem"))
+
   # MC2C <- data.frame(GTAPSETS$COMM) %>% mutate(MC2C = ifelse(Value %in% GTAPSETS$NONF$Value, "NonFood","Food"))
-  # This below gives highest level of detail.
-  MC2C <- data.frame(GTAPSETS$COMM) %>% mutate(MC2C = Value)
-  ACTDAT$MC2C <- data.frame(Value = MC2C$MC2C)
+  # MC2C <- select(COMM2ACTS, MC2C = ACTS)
+  # ACTDAT$MC2C <- data.frame(Value = MC2C$MC2C)
+
+  # Adding sets so that it works in the gempack code as well
+  ACTDAT$SFPA <- data.frame(Value = unique(A_FP$FPRNT_A))
+  #ACTDAT$SFPI <- Is empty set here but don't konw how to write it
+  ACTDAT$CHNL <- data.frame(Value = unique(ACTDAT$MC2C$Value))
+  ACTDAT$FDCT <- data.frame(Value = unique(ACTDAT$MD2F$Value))
+
+  #Mamking sure the order is correct for writing the har file if needed
+  dimlist <- list(FPRNT_A = unique(ACTDAT$A_FP$FPRNT_A),
+                  ACTS = GTAPSETS$ACTS$Value,
+                  REG = GTAPSETS$REG$Value)
+  ACTDAT$A_FP <- magnet_prepdf_for_write_har(ACTDAT$A_FP,dimlist)
 
   return(ACTDAT)
 }
+
+
+
 

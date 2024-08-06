@@ -13,6 +13,23 @@ gvc_fixbdata <- function(bdata) {
   if(!("DTRN" %in% names(bdata))){bdata$DTRN <- bdata$TD_Q}
   if(!("STRN" %in% names(bdata))){bdata$STRN <- bdata$TS_Q}
 
+  if(("TRADE_Q" %in% names(bdata))){bdata$TRAD <- bdata$TRADE_Q}
+  if(("PROD_Q" %in% names(bdata))){bdata$PRDQ <- bdata$PROD_Q}
+  if(("D_INT_Q" %in% names(bdata))){bdata$DINQ <- bdata$D_INT_Q}
+  if(("M_INT_Q" %in% names(bdata))){bdata$MINQ <- bdata$M_INT_Q}
+  if(("D_FINP_Q" %in% names(bdata))){bdata$DFNH <- bdata$D_FINP_Q}
+  if(("M_FINP_Q" %in% names(bdata))){bdata$MFNH <- bdata$M_FINP_Q}
+  if(("D_FING_Q" %in% names(bdata))){bdata$DFNG <- bdata$D_FING_Q}
+  if(("M_FING_Q" %in% names(bdata))){bdata$MFNG <- bdata$M_FING_Q}
+  if(("D_FINI_Q" %in% names(bdata))){bdata$DFNI <- bdata$D_FINI_Q}
+  if(("M_FINI_Q" %in% names(bdata))){bdata$MFNI <- bdata$M_FINI_Q}
+  if(("TRANSD_Q" %in% names(bdata))){bdata$DTRN <- bdata$TRANSD_Q}
+  if(("TRANSS_Q" %in% names(bdata))){bdata$STRN <- bdata$TRANSS_Q}
+  if(("MAKEB" %in% names(bdata))){bdata$MAKB <- bdata$MAKEB}
+  if(("NQ_VOM" %in% names(bdata))){bdata$NVOM <- bdata$NQ_VOM}
+
+
+
   return(bdata)
 }
 
@@ -520,7 +537,12 @@ make_food_gvc <- function(gvcdata, sets){
 # }
 
 make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
-  NVOM <- bdata$NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) #%>% subset(NUTRIENTS != "lanU")
+
+  if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <- rename(NCMF, COMM = PRIM_AGRI)}
+  NVOM <- bdata$NVOM
+  if("NUTRIENTS" %in% colnames(NVOM)){NVOM <- rename(NVOM, NUTRIENTS0 = NUTRIENTS)}
+  NVOM <- NVOM %>% rename(COMM = PRIM_AGRI, NVOMval = Value) %>% subset(NUTRIENTS0 != "lanU")
+
   population <- bdata$POP %>% rename(REG_3 = REG, POP = Value)
   gvcdata_nutrients <- gvcdata %>%
     left_join(NVOM) %>% left_join(NCMF)  %>%
@@ -532,12 +554,15 @@ make_nutrients_gvc <- function(gvcdata,bdata,NCMF){
 }
 
 make_pefood <- function(gvcdata_nutrients){
-  PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlowPerCapDay) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
+
+  if("NUTRIENTS" %in% colnames(gvcdata_nutrients)){gvcdata_nutrients <- rename(gvcdata_nutrients, NUTRIENTS0 = NUTRIENTS)}
+
+  PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS0,Value = VirtFlowPerCapDay) %>%
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOOD <- with(PEFOOD, PEFOOD[order(HFOOD,PRIM_AGRI),])
 
-  PEFOODTOT <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS,Value = VirtFlow) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS) %>% summarize(Value = sum(Value))
+  PEFOODTOT <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS0,Value = VirtFlow) %>%
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOODTOT <- with(PEFOODTOT, PEFOODTOT[order(HFOOD,PRIM_AGRI),])
 
   pefoodout <- list()

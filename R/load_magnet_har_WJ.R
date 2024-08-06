@@ -80,7 +80,7 @@ magnet_write_har <- function(dflist, outfilename) {
   # magnet_write_har(dflist ,"test.har")
   # The write har is sensitive to the order of the values related to the order of the dimensions and the code  tries to do that.
   # Use the magnet_prepdf_for_write_har to changes dimensions order manually
-
+  # If you set descriptoin attribute it will be used in the name column of the har files.
   ar <- list()
 
   if(is.data.frame(dflist)){ # If someone juts passing a single dataframe, make it work.
@@ -92,6 +92,18 @@ magnet_write_har <- function(dflist, outfilename) {
     df <- dflist[[h]]
 
     if ("value" %in% colnames(df)){df <- rename(df, Value = value)}
+
+    if(nchar(h) > 4) {
+      if(is.null(attr(df,"description"))){
+        attributes(df)$description <- h
+      }
+
+      h <- substr(h,1,4)
+      print("warning, headers cannot be longer than 4 characters, shortening")
+
+
+    }
+
 
     if(ncol(df) == 1 & is.character(df$Value)){
       #This means it's a set, and writing just simple means putting the list of strings in there.
@@ -124,6 +136,8 @@ magnet_write_har <- function(dflist, outfilename) {
       dim = dimsizelist,
       dimnames = dimlist
     )
+
+    attributes(ar[[h]])$description <- attr(df,"description")
   }
 
   HARr::write_har(ar, outfilename)
@@ -138,11 +152,13 @@ magnet_get_scenarioinfo <- function(maindir) {
 
   getinfobasedata <- function(x){
     answertxt <- read.delim(x,header=FALSE,quote="")
-    BaseData_b <- str_trim(answertxt[6,])
+    m = match(c("Base data file"),answertxt$V1) + 1
+    BaseData_b <- str_trim(answertxt[m,])
   }
   getinfosets <- function(x){
     answertxt <- read.delim(x,header=FALSE,quote="")
-    BaseData_b <- file.path("4_MAGNET","BaseData","Sets",gsub("- ","",str_trim(answertxt[9,])))
+    m = match(c("Base data file"),answertxt$V1) + 4
+    BaseData_b <- file.path("4_MAGNET","BaseData","Sets",gsub("- ","",str_trim(answertxt[m,])))
   }
 
   getinfoperiods <- function(x){
@@ -285,14 +301,14 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
       magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     },
     error=function(cond) {
-      message("Error reading HArr file, here's the error:")
-      message(cond)
+      message("Error reading HArr file, quiting loop over files")
       return(NULL)
     },
     finally={
       message("read scenario succesfully")
     }
   )
+
 
   period <- str_extract(fullfilepath,"\\d{4}-\\d{4}")
   years <- unlist(str_split(period, "-"))
@@ -302,7 +318,7 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
   return(df)
 }
 
-readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,threshold = 0.1) {
+readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,threshold = 1E-6) {
 
   df <-  tryCatch(
     {
@@ -319,88 +335,103 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,
     }
   )
 
-  primagri <- unique(df$NVOM$PRIM_AGRI)
-  df_fn <- df
 
-  df_fn$DINQ <- df_fn$DINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
-  df_fn$MINQ <- df_fn$MINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  # df <- gvc_fixbdata(df)
 
-  gvcdata_full_food <- getMBALflows(df_fn,threshold = threshold) %>% subset(Value > 0)
-  gvcdata_food <- magnetr:::make_food_gvc(gvcdata_full_food, sets)
-  if(is.null(NCMF)){
-    NCMF <- magnetr:::generate_ncmf(gvcdata_food, df_fn)
-  }
-  gvcdata_nutrients <- magnetr:::make_nutrients_gvc(gvcdata_food,df_fn,NCMF)
-
-  PEFOOD <- magnetr:::make_pefood(gvcdata_nutrients)
-
-  # fixing sets' order
-  regs <- sets$REG$Value
-  primagri <- sets$PRAG$Value
-  nonfoodset <- sets$NONF$Value
-  comm <- sets$COMM$Value
-  hfood <- setdiff(comm, nonfoodset)
-
-  nutrients <- as.character(unique(gvcdata_nutrients$NUTRIENTS))
-  dimlist <- list(PRIM_AGRI = primagri, HFOOD = hfood, REG = regs, REG_2 = regs, NUTRIENTS = nutrients)
-  PEFOOD$PEFO <- magnetr:::magnet_prepdf_for_write_har(PEFOOD$PEFO, dimlist)
-  PEFOOD$PEFT <- magnetr:::magnet_prepdf_for_write_har(PEFOOD$PEFT, dimlist)
-  # the versions created above are those that can be written to hare file and will have the proper dimensions
-  # for here I subset now to remove zeroes as it saves quite some space
-
-  PEFOOD$PEFO <- subset(PEFOOD$PEFO, Value > 0)
-  PEFOOD$PEFT <- subset(PEFOOD$PEFT, Value > 0)
-  sum(subset(PEFOOD$PEFT, PRIM_AGRI == "wht" & NUTRIENTS == "QUANT")$Value)
-
-  Trade <- df$TRAD
-  Prod <-  df$PROD %>% rename(COMM = ACTS) %>% subset(COMM %in% comm)
-  Prodval <- df$PRDQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
-  TRAD1 <- left_join(df$TRAD, rename(Prodval, Prodval = Value)) %>% left_join(rename(Prod, Quant = Value)) %>%
-    mutate(ExpShare = Value/Prodval, QEXPO = ExpShare * Quant)
-  QEXPO <- TRAD1 %>% select(COMM,REG,REG_2,Value = QEXPO)
+  # primagri <- unique(df$NVOM$PRIM_AGRI)
+  # df_fn <- df
+  #
+  # df_fn$DINQ <- df_fn$DINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  # df_fn$MINQ <- df_fn$MINQ %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  # df_fn$DA_Q <- df_fn$DA_Q %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  # df_fn$MA_Q <- df_fn$MA_Q %>% mutate(Value = ifelse(ACTS %in% primagri ,0,Value))
+  #
+  # gvcdata_full_food <- getMBALflows(df_fn,threshold = threshold) %>% subset(Value > 0)
+  # gvcdata_food <- magnetr:::make_food_gvc(gvcdata_full_food, sets)
+  # if(is.null(NCMF)){
+  #   NCMF <- magnetr:::generate_ncmf(gvcdata_food, df_fn)
+  # }
+  # gvcdata_nutrients <- magnetr:::make_nutrients_gvc(gvcdata_food,df_fn,NCMF)
+  #
+  # PEFOOD <- magnetr:::make_pefood(gvcdata_nutrients)
+  #
+  # # fixing sets' order
+  # regs <- sets$REG$Value
+  # primagri <- sets$PRAG$Value
+  # nonfoodset <- sets$NONF$Value
+  # comm <- sets$COMM$Value
+  # hfood <- setdiff(comm, nonfoodset)
+  #
+  # nutrients <- as.character(unique(gvcdata_nutrients$NUTRIENTS))
+  # dimlist <- list(PRIM_AGRI = primagri, HFOOD = hfood, REG = regs, REG_2 = regs, NUTRIENTS = nutrients)
+  # PEFOOD$PEFO <- magnetr:::magnet_prepdf_for_write_har(PEFOOD$PEFO, dimlist)
+  # PEFOOD$PEFT <- magnetr:::magnet_prepdf_for_write_har(PEFOOD$PEFT, dimlist)
+  # # the versions created above are those that can be written to hare file and will have the proper dimensions
+  # # for here I subset now to remove zeroes as it saves quite some space
+  #
+  # PEFOOD$PEFO <- subset(PEFOOD$PEFO, Value > 0)
+  # PEFOOD$PEFT <- subset(PEFOOD$PEFT, Value > 0)
+  # sum(subset(PEFOOD$PEFT, PRIM_AGRI == "wht" & NUTRIENTS == "QUANT")$Value)
+  #
+  # Trade <- df$TRAD
+  # Prod <-  df$PROD %>% rename(COMM = ACTS) %>% subset(COMM %in% comm)
+  # Prodval <- df$PRDQ %>% group_by(COMM,REG) %>% summarize(Value = sum(Value))
+  # TRAD1 <- left_join(df$TRAD, rename(Prodval, Prodval = Value)) %>% left_join(rename(Prod, Quant = Value)) %>%
+  #   mutate(ExpShare = Value/Prodval, QEXPO = ExpShare * Quant)
+  # QEXPO <- TRAD1 %>% select(COMM,REG,REG_2,Value = QEXPO)
 
   ## regular GVC things, for o.a. PBL
-  indicators <- getcommregindicators(sets,df)
+  #indicators <- getcommregindicators(sets,df)
 
-  mbal <- gvc_prepmatbal(df,threshold = threshold)
+  df <- MBL_fixbdata(df) # fixing old header to new namess if applicable
+  ACTDAT <- MBL_MakeACTDAT(sets,df)
 
-  Q_q <- mbal[[1]]
-  F_q <- mbal[[2]]
-  IO_q <- mbal[[3]]
+  #mbal <- gvc_prepmatbal(df,threshold = threshold)
+  MBL_FOOTP_FD <- MBL_Footprints(sets, ACTDAT, df, threshold = threshold)
 
-  iomatrix_q <- gvc_prepiomatrix(IO_q,Q_q)
-  X_q <- gvc_leontiefinverse(iomatrix_q, Q_q)
+  # Q_q <- mbal[[1]]
+  # F_q <- mbal[[2]]
+  # IO_q <- mbal[[3]]
+  #
+  # iomatrix_q <- gvc_prepiomatrix(IO_q,Q_q)
+  # X_q <- gvc_leontiefinverse(iomatrix_q, Q_q)
+  #
+  # # converse converted to 'long' format'
+  # LI_q <- gvc_melt_matrix(X_q, Q_q)
+  #
+  # colnames(F_q) <- c("COMM_2","AGENT","REG_2","REG_3","Value_F")
+  # F_q <- subset(F_q, Value_F > threshold)
+  # LI_q <- subset(LI_q, value > 0)
+  # QFD_q <- data.frame()
+  #
+  # looplist <- unique(select(ungroup(F_q), COMM_2, REG_2))
+  # looplist <- unique(select(ungroup(F_q), REG_2))
+  # print("starting loop over REG_2 column to make QFD_q matrix, this can take some time.")
+  # for (n in 1:nrow(looplist)) {
+  #   print(paste("now at row",n,"of",nrow(looplist)))
+  #   reg2 <- looplist$REG_2[n]
+  #   F_Q_part <- subset(F_q, REG_2 == reg2)
+  #   LI_q_part <- subset(LI_q, REG_2 == reg2)
+  #   QFD_q_part <- full_join(F_Q_part,LI_q_part) %>% mutate(Value = value * Value_F) %>% select(-value, -Value_F) %>%
+  #     subset(Value > 0.1) %>%
+  #     select(COMM, REG, COMM_2, REG_2, AGENT, REG_3, Value)
+  #   QFD_q <- bind_rows(QFD_q,QFD_q_part)
+  # }
+  # # #Adding production side shares
+  # QFD_q <- QFD_q %>% group_by(COMM,REG) %>% mutate(ProdShare = Value/sum(Value)) %>% ungroup()
+  #
+  # gvcdata_ind <- addgvcindicators(QFD_q, indicators)
 
-  # converse converted to 'long' format'
-  LI_q <- gvc_melt_matrix(X_q, Q_q)
-
-  colnames(F_q) <- c("COMM_2","AGENT","REG_2","REG_3","Value_F")
-  F_q <- subset(F_q, Value_F > threshold)
-  LI_q <- subset(LI_q, value > 0)
-  QFD_q <- data.frame()
-
-  looplist <- unique(select(ungroup(F_q), COMM_2, REG_2))
-  looplist <- unique(select(ungroup(F_q), REG_2))
-  print("starting loop over REG_2 column to make QFD_q matrix, this can take some time.")
-  for (n in 1:nrow(looplist)) {
-    print(paste("now at row",n,"of",nrow(looplist)))
-    reg2 <- looplist$REG_2[n]
-    F_Q_part <- subset(F_q, REG_2 == reg2)
-    LI_q_part <- subset(LI_q, REG_2 == reg2)
-    QFD_q_part <- full_join(F_Q_part,LI_q_part) %>% mutate(Value = value * Value_F) %>% select(-value, -Value_F) %>%
-      subset(Value > 0.1) %>%
-      select(COMM, REG, COMM_2, REG_2, AGENT, REG_3, Value)
-    QFD_q <- bind_rows(QFD_q,QFD_q_part)
-  }
-  # #Adding production side shares
-  QFD_q <- QFD_q %>% group_by(COMM,REG) %>% mutate(ProdShare = Value/sum(Value)) %>% ungroup()
-
-
-  dfout <- list(PEFO = PEFOOD$PEFO, PEFT = PEFOOD$PEFT, QEXPO = QEXPO,
-                IO_q = IO_q,F_q = F_q,Q_q = Q_q,Indicators = indicators, QFD_q = QFD_q)
+  # dfout <- list(PEFO = PEFOOD$PEFO, PEFT = PEFOOD$PEFT, QEXPO = QEXPO, OLDFP = gvcdata_ind,
+  #               IO_q = IO_q,F_q = F_q,Q_q = Q_q,Indicators = indicators, QFD_q = QFD_q,
+  #               MBL_FOOTP = MBL_FOOTP_FD[[1]], MBL_IO_q = MBL_FOOTP_FD[[2]],
+  #               MBL_F_q = MBL_FOOTP_FD[[3]],MBL_Q_q = MBL_FOOTP_FD[[4]])
+  dfout <- list(MBL_FOOTP = MBL_FOOTP_FD[[1]], MBL_IO_q = MBL_FOOTP_FD[[2]],
+                MBL_F_q = MBL_FOOTP_FD[[3]],MBL_Q_q = MBL_FOOTP_FD[[4]],MBL_FD_shr =MBL_FOOTP_FD[[5]], MBL_COMM_SHR = MBL_FOOTP_FD[[6]],
+                ACTDAT_AFP = ACTDAT$A_FP, MBL_ACTDAT_out = MBL_FOOTP_FD[[7]])
   dfout <- addyearandscen(dfout, year, scenname)
 
-  dfout$NCMF <- NCMF #NCMF header is only for basedata, should not have year and scen
+  #dfout$NCMF <- NCMF #NCMF header is only for basedata, should not have year and scen
 
   return(dfout)
 }
@@ -421,7 +452,7 @@ addyearandscen <- function(df, year, scenname){
   return(df)
 }
 
-readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL, threshold = 0.1) {
+readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, addgvcinfo = FALSE, NCMF = NULL, sets = NULL, threshold = 1E-6, years_sel = NULL) {
   # Reads all files in a scenario for a given scenario name.
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
@@ -434,6 +465,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
 
   df_update <- list()
   for (f in updatefiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -442,6 +475,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_update_view <- list()
   for (f in updateviewfiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -450,6 +485,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_update_tax <- list()
   for (f in updatetaxfiles) {
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -458,6 +495,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   }
   df_solution <- list()
   for (f in solfiles) {
+    #for soluation file we always keep all years
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -469,6 +507,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   if(addgvcinfo){
     for (f in updatefiles) {
       year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+      if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
       dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
       for (n in names(dftmp)){
@@ -529,7 +568,7 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 0.1){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 1E-6, years_sel = NULL){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
@@ -540,9 +579,9 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
                               readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold)
   NCMF = df_basedata$GVC$NCMF
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
-                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold)
+                              addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold, years_sel = years_sel)
 
-  df_scendata <- mergescendata(df_scendata, df_basedata)
+  df_scendata <- mergescendata(df_basedata, df_scendata)
   baseyear <- min(df_scendata$Update$YEAR$Value)
 
   df_scendata$Solution_index <- list()
