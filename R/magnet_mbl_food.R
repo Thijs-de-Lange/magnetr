@@ -6,7 +6,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
   COMM <- GTAPSETS$COMM$Value
 
   # Set PRAG # Primary agriculture in the model
-  PRAG <- GTAPSETS$PRAG$Value
+  PRIM_AGRI <- GTAPSETS$PRAG$Value
 
   # Set NONF # Non-food commodities in the model
   NONF <- GTAPSETS$NONF$Value
@@ -15,7 +15,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
   HFOOD <- setdiff(COMM, NONF)
 
   # Set PFOOD # Commodities consumed as processed food
-  PFOOD <- setdiff(HFOOD, PRAG)
+  PFOOD <- setdiff(HFOOD, PRIM_AGRI)
 
   # Load results from MBL_ConstructBalances -----------------------------------------
   print("start routine MBL_ConstructBalances")
@@ -37,9 +37,9 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
            c = COMM_2,
            d = REG_2) %>%
     #remove all primary agriculture inputs in activities, except for processed food;
-    mutate(Value = ifelse(i %in% PRAG & !c %in% PFOOD, 0, Value)) %>%
+    mutate(Value = ifelse(i %in% PRIM_AGRI & !c %in% PFOOD, 0, Value)) %>%
     #remove all inputs in the activity primary agriculture;
-    mutate(Value = ifelse(c %in% PRAG, 0, Value)) %>%
+    mutate(Value = ifelse(c %in% PRIM_AGRI, 0, Value)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -233,21 +233,21 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
 MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
 
   # Load MBL_INvertLeontief
-  print("start routine MBL_InvertLeontief")
-  MBL_InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, ACTDAT, GTAPDATA)
-  print("finished routine MBL_InvertLeontief")
+  print("start routine MBL_InvertLeontief_food")
+  InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, ACTDAT, GTAPDATA)
+  print("finished routine MBL_InvertLeontief_food")
 
-  MBL_COMM_SHR <- MBL_InvertLeontief_food[[1]]
-  MBL_s_Q_q <- MBL_InvertLeontief_food[[2]]
-  MBL_s_FP_q <- MBL_InvertLeontief_food[[3]]
-  MBL_s_FG_q <- MBL_InvertLeontief_food[[4]]
-  MBL_s_FI_q <- MBL_InvertLeontief_food[[5]]
-  MBL_L <-  MBL_InvertLeontief_food[[6]]
-  comregmap <- MBL_InvertLeontief_food[[7]]
-  comregmap2 <- MBL_InvertLeontief_food[[8]]
-  MBL_s_IO_q <- MBL_InvertLeontief_food[[9]] # keeping this to return in main output
+  MBL_COMM_SHR <- InvertLeontief_food[[1]]
+  MBL_s_Q_q <- InvertLeontief_food[[2]]
+  MBL_s_FP_q <- InvertLeontief_food[[3]]
+  MBL_s_FG_q <- InvertLeontief_food[[4]]
+  MBL_s_FI_q <- InvertLeontief_food[[5]]
+  MBL_L <-  InvertLeontief_food[[6]]
+  comregmap <- InvertLeontief_food[[7]]
+  comregmap2 <- InvertLeontief_food[[8]]
+  MBL_s_IO_q <- InvertLeontief_food[[9]] # keeping this to return in main output
 
-  rm(MBL_InvertLeontief_food)
+  rm(InvertLeontief_food)
 
   # Standard GTAP sets ----------------------------------------------------------
 
@@ -397,7 +397,13 @@ MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
 }
 
 
-make_nutrients_gvc <- function(MBL_FD_shr, bdata, NCMF){
+make_nutrients_gvc <- function(bdata, NCMF){
+
+  ProductionShares_food <- MBL_ProductionShares_food(GTAPSETS, ACTDAT, GTAPDATA)
+
+  MBL_FD_shr <- ProductionShares_food[[2]]
+
+  NVOM <- bdata$NVOM
 
   if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <-
     rename(NCMF, COMM = PRIM_AGRI)}
@@ -405,15 +411,19 @@ make_nutrients_gvc <- function(MBL_FD_shr, bdata, NCMF){
   if("NUTRIENTS" %in% colnames(NVOM)){NVOM <-
     rename(NVOM, NUTRIENTS0 = NUTRIENTS)}
 
+  if("PRIM_AGRI" %in% colnames(NVOM)){NVOM <-
+    rename(NVOM, COMM = PRIM_AGRI)}
+
   NVOM <- NVOM %>%
-    rename(COMM = PRIM_AGRI, NVOMval = Value) %>%
+    rename(NVOMval = Value) %>%
     subset(NUTRIENTS0 != "lanU")
+
 
   population <- bdata$POP %>%
     rename(REG_3 = REG, POP = Value)
 
   gvcdata_nutrients <- MBL_FD_shr %>%
-    rename(PRODShare = Value) %>%
+    rename(ProdShare = Value) %>%
     left_join(NVOM) %>%
     left_join(NCMF)  %>%
     mutate(VirtFlow = (NVOMval * ProdShare / NCMFVal)) %>%
