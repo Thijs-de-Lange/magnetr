@@ -39,7 +39,12 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
     #remove all primary agriculture inputs in activities, except for processed food;
     mutate(Value = ifelse(i %in% PRAG & !c %in% PFOOD, 0, Value)) %>%
     #remove all inputs in the activity primary agriculture;
-    mutate(Value = ifelse(c %in% PRAG, 0, Value))
+    mutate(Value = ifelse(c %in% PRAG, 0, Value)) %>%
+    select(COMM = i,
+           REG = s,
+           COMM_2 = c,
+           REG_2 = d,
+           Value)
 
   # Derive production difference take sum of the use of i from region s;
   MBL_Q_q_diff <- MBL_s_I_q %>%
@@ -178,48 +183,48 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
   # Post-simulation checks
 
   # This is very slow and crashes with larger models
-  if(Check_inv){
-    #MBL_CHK_INV(i,k) # Check on Leontief inversion - should be close to identity matrix#;
-    MBL_CHK_INV <-  MBL_I_IO %>%
-      rename(i = COMREG,
-             j = COMREG_2,
-             I_IO = Value) %>%
-      left_join(.,
-                MBL_L_long_comreg %>%
-                  rename(j = COMREG,
-                         k = COMREG_2,
-                         L = Value)) %>%
-      mutate(Value = I_IO * L) %>%
-      group_by(i, k) %>%
-      summarize(Value = sum(Value)) %>%
-      ungroup() %>%
-      select(COMREG = i,
-             COMREG_2 = k,
-             Value)
-
-    # Define assertion to generate error in case of faulty inversion
-
-    rownames(MBL_IM) <- comreg
-    colnames(MBL_IM) <- comreg
-
-
-    #MBL_IM_DIF # Difference from identity matrix #;
-    MBL_IM_DIF <- MBL_CHK_INV  %>%
-      rename(i = COMREG,
-             k = COMREG_2,
-             CHK_INV = Value) %>%
-      left_join(.,
-                MBL_IM %>%
-                  melt() %>%
-                  rename(i = Var1,
-                         k = Var2,
-                         L = value)) %>%
-      mutate(Value = CHK_INV - L) %>%
-      summarize(Value = sum(Value))
-
-    if (MBL_IM_DIF$Value < MBL_IMDIFmax){
-      print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
-  }
+#  if(Check_inv){
+#    #MBL_CHK_INV(i,k) # Check on Leontief inversion - should be close to identity matrix#;
+#    MBL_CHK_INV <-  MBL_I_IO %>%
+#      rename(i = COMREG,
+#             j = COMREG_2,
+#             I_IO = Value) %>%
+#      left_join(.,
+#                MBL_L_long_comreg %>%
+#                  rename(j = COMREG,
+#                         k = COMREG_2,
+#                         L = Value)) %>%
+#      mutate(Value = I_IO * L) %>%
+#      group_by(i, k) %>%
+#      summarize(Value = sum(Value)) %>%
+#      ungroup() %>%
+#      select(COMREG = i,
+#             COMREG_2 = k,
+#             Value)
+#
+#    # Define assertion to generate error in case of faulty inversion#
+#
+#    rownames(MBL_IM) <- comreg
+#    colnames(MBL_IM) <- comreg
+#
+#
+#    #MBL_IM_DIF # Difference from identity matrix #;
+#    MBL_IM_DIF <- MBL_CHK_INV  %>%
+#      rename(i = COMREG,
+#             k = COMREG_2,
+#             CHK_INV = Value) %>%
+#      left_join(.,
+#                MBL_IM %>%
+#                  melt() %>%
+#                  rename(i = Var1,
+#                         k = Var2,
+#                         L = value)) %>%
+#      mutate(Value = CHK_INV - L) %>%
+#      summarize(Value = sum(Value))
+#
+#    if (MBL_IM_DIF$Value < MBL_IMDIFmax){
+#      print("Good job!") } else { print("Arbitrary boundary - meant as warning to carefully check results")}
+#  }
 
   return(list(MBL_COMM_SHR, MBL_s_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_L, comregmap, comregmap2, MBL_s_IO_q))
 
