@@ -397,7 +397,7 @@ MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
 }
 
 
-make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
+MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
 
   MBL_FD_shr <- gvcfood
 
@@ -433,7 +433,7 @@ make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
   return(gvcdata_nutrients)
 }
 
-make_pefood <- function(gvcdata_nutrients){
+MBL_make_pefood <- function(gvcdata_nutrients){
 
   if("NUTRIENTS" %in% colnames(gvcdata_nutrients)){gvcdata_nutrients <- rename(gvcdata_nutrients, NUTRIENTS0 = NUTRIENTS)}
 
