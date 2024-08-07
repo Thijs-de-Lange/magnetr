@@ -9,7 +9,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
   PRAG <- GTAPSETS$PRAG$Value
 
   # Set NONF # Non-food commodities in the model
-  NONF <- sets$NONF$Value
+  NONF <- GTAPSETS$NONF$Value
 
   # Set HFOOD # Commodities consumed as food
   HFOOD <- setdiff(COMM, NONF)
