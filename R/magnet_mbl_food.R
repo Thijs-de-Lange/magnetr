@@ -402,16 +402,6 @@ make_nutrients_gvc <- function(MBL_FD_shr, bdata, NCMF){
   if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <-
     rename(NCMF, COMM = PRIM_AGRI)}
 
-  #taking intake values by default for PEFO
-  FINU <- bdata$FINU %>%
-    rename(REG_3 = REG, COMM = PRIM_AGRI, FINUval = Value) %>%
-    subset(NUTRIENTS != "lanU")
-
-  #This calculates the correction factor from primary production quantities (NVOM) to supply values (FSNU) according to the food balance sheets
-  NVOM <- bdata$NVOM %>%
-    rename(COMM = PRIM_AGRI, NVOMval = Value) %>%
-    subset(NUTRIENTS != "lanU")
-
   if("NUTRIENTS" %in% colnames(NVOM)){NVOM <-
     rename(NVOM, NUTRIENTS0 = NUTRIENTS)}
 
@@ -423,6 +413,7 @@ make_nutrients_gvc <- function(MBL_FD_shr, bdata, NCMF){
     rename(REG_3 = REG, POP = Value)
 
   gvcdata_nutrients <- MBL_FD_shr %>%
+    rename(PRODShare = Value) %>%
     left_join(NVOM) %>%
     left_join(NCMF)  %>%
     mutate(VirtFlow = (NVOMval * ProdShare / NCMFVal)) %>%
