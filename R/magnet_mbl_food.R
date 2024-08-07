@@ -397,11 +397,9 @@ MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
 }
 
 
-make_nutrients_gvc <- function(bdata, NCMF){
+make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
 
-  ProductionShares_food <- MBL_ProductionShares_food(GTAPSETS, ACTDAT, GTAPDATA)
-
-  MBL_FD_shr <- ProductionShares_food[[2]]
+  MBL_FD_shr <- gvcfood
 
   NVOM <- bdata$NVOM
 
