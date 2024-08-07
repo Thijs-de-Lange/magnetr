@@ -437,32 +437,14 @@ make_nutrients_gvc <- function(bdata, NCMF){
 
 make_pefood <- function(gvcdata_nutrients){
 
-  gvcdata_nutrients <- magnetr:::make_nutrients_gvc(gvcdata_food, bdata, rename(ncmp, NCMFVal = Value))
+  if("NUTRIENTS" %in% colnames(gvcdata_nutrients)){gvcdata_nutrients <- rename(gvcdata_nutrients, NUTRIENTS0 = NUTRIENTS)}
 
-  if("NUTRIENTS" %in% colnames(gvcdata_nutrients)){gvcdata_nutrients <-
-    rename(gvcdata_nutrients, NUTRIENTS0 = NUTRIENTS)}
-
-  PEFOOD <- gvcdata_nutrients %>%
-    select(PRIM_AGRI = COMM,
-           HFOOD = COMM_2,REG,
-           REG_2 = REG_3,
-           NUTRIENTS0,
-           Value = VirtFlowPerCapDay) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>%
-    summarize(Value = sum(Value))
-
+  PEFOOD <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS0,Value = VirtFlowPerCapDay) %>%
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOOD <- with(PEFOOD, PEFOOD[order(HFOOD,PRIM_AGRI),])
 
-  PEFOODTOT <- gvcdata_nutrients %>%
-    select(PRIM_AGRI = COMM,
-           HFOOD = COMM_2,
-           REG,
-           REG_2 = REG_3,
-           NUTRIENTS0,
-           Value = VirtFlow) %>%
-    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>%
-    summarize(Value = sum(Value))
-
+  PEFOODTOT <- select(gvcdata_nutrients, PRIM_AGRI = COMM, HFOOD = COMM_2,REG, REG_2 = REG_3,NUTRIENTS0,Value = VirtFlow) %>%
+    group_by(PRIM_AGRI, HFOOD, REG, REG_2, NUTRIENTS0) %>% summarize(Value = sum(Value))
   PEFOODTOT <- with(PEFOODTOT, PEFOODTOT[order(HFOOD,PRIM_AGRI),])
 
   pefoodout <- list()
