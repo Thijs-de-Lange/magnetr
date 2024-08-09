@@ -16,7 +16,7 @@ MBL_fixbdata <- function(bdata) {
   return(bdata)
 }
 
-MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NULL) {
+MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
 
   # Standard GTAP sets ----------------------------------------------------------
 
@@ -752,11 +752,11 @@ MBL_ConstructBalances <-  function(GTAPSETS, ACTDAT, GTAPDATA, MANUAL_CSHR = NUL
   return(list(MBL_COMM_SHR, MBL_Q_q, MBL_s_FP_q, MBL_s_FG_q, MBL_s_FI_q, MBL_s_I_q))
 }
 
-MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALSE) {
+MBL_InvertLeontief <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 
   # Load results from MBL_ConstructBalances -----------------------------------------
   print("start routine MBL_ConstructBalances")
-  ConstructBalances <- MBL_ConstructBalances(GTAPSETS, ACTDAT, GTAPDATA)
+  ConstructBalances <- MBL_ConstructBalances(GTAPSETS, GTAPDATA)
   print("finished routine MBL_ConstructBalances")
 
   MBL_COMM_SHR <- ConstructBalances[[1]]
@@ -913,11 +913,11 @@ MBL_InvertLeontief <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALSE) {
 
 }
 
-MBL_ProductionShares <- function(GTAPSETS, ACTDAT, GTAPDATA){
+MBL_ProductionShares <- function(GTAPSETS, GTAPDATA){
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief")
-  MBL_InvertLeontief <- MBL_InvertLeontief(GTAPSETS, ACTDAT, GTAPDATA)
+  MBL_InvertLeontief <- MBL_InvertLeontief(GTAPSETS, GTAPDATA)
   print("finished routine MBL_InvertLeontief")
 
   MBL_COMM_SHR <- MBL_InvertLeontief[[1]]
@@ -1113,7 +1113,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   # Load MBL_ProductionShares ----------------------------------------------------
   print("start routine MBL_ProductionShares")
-  ProductionShares <- MBL_ProductionShares(GTAPSETS, ACTDAT, GTAPDATA)
+  ProductionShares <- MBL_ProductionShares(GTAPSETS, GTAPDATA)
   print("finished routine MBL_ProductionShares")
 
   MBL_COMM_SHR <- ProductionShares[[1]]

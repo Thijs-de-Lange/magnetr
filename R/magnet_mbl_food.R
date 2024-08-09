@@ -1,4 +1,4 @@
-MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALSE) {
+MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 
   # EXTRA sets to trace food flows -------------------------------------------------
 
@@ -14,12 +14,12 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
   # Set HFOOD # Commodities consumed as food
   HFOOD <- setdiff(COMM, NONF)
 
-  # Set PFOOD # Commodities consumed as processed food
+  # Set PFOOD # Commodities consumed as processed food or food services
   PFOOD <- setdiff(HFOOD, PRIM_AGRI)
 
   # Load results from MBL_ConstructBalances -----------------------------------------
   print("start routine MBL_ConstructBalances")
-  ConstructBalances <- MBL_ConstructBalances(GTAPSETS, ACTDAT, GTAPDATA)
+  ConstructBalances <- MBL_ConstructBalances(GTAPSETS, GTAPDATA)
   print("finished routine MBL_ConstructBalances")
 
   MBL_COMM_SHR <- ConstructBalances[[1]]
@@ -36,10 +36,12 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
            s = REG,
            c = COMM_2,
            d = REG_2) %>%
-    #remove all primary agriculture inputs in activities, except for processed food;
+    # remove all primary agriculture inputs in activities, except for processed food and food services.
+    # This also removes, for example all inputs into feed and byproducts used for feed.
     mutate(Value = ifelse(i %in% PRIM_AGRI & !c %in% PFOOD, 0, Value)) %>%
-    #remove all inputs in the activity primary agriculture;
-    mutate(Value = ifelse(c %in% PRIM_AGRI & i %in% c(PRIM_AGRI, PFOOD), 0, Value)) %>%
+    # remove all food related inputs in the activity primary agriculture;
+    # This leaves some other flows like feed in here, but the primary inputs of those have been removed in the step above. Removing more seems to crash the LI.
+    mutate(Value = ifelse(i %in% c(PRIM_AGRI, PFOOD) & c %in% PRIM_AGRI, 0, Value)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -230,11 +232,11 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
 
 }
 
-MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
+MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA){
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief_food")
-  InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, ACTDAT, GTAPDATA)
+  InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, GTAPDATA)
   print("finished routine MBL_InvertLeontief_food")
 
   MBL_COMM_SHR <- InvertLeontief_food[[1]]
