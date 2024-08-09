@@ -39,7 +39,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, ACTDAT, GTAPDATA, Check_inv = FALS
     #remove all primary agriculture inputs in activities, except for processed food;
     mutate(Value = ifelse(i %in% PRIM_AGRI & !c %in% PFOOD, 0, Value)) %>%
     #remove all inputs in the activity primary agriculture;
-    mutate(Value = ifelse(c %in% PRIM_AGRI, 0, Value)) %>%
+    mutate(Value = ifelse(c %in% PRIM_AGRI & i %in% c(PRIM_AGRI, PFOOD), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -394,6 +394,21 @@ MBL_ProductionShares_food <- function(GTAPSETS, ACTDAT, GTAPDATA){
 
   return(list(MBL_COMM_SHR, MBL_FD_shr,MBL_s_IO_q, MBL_s_Fall_q,MBL_s_Q_q))
 
+}
+
+MBL_make_food_gvc <- function(gvcdata, sets){
+  #typical way to subset the gvcdata for food analysies, ignores all nonfood flows, and focuses on primary --> processed flows into households only.
+  nonfoodset <- sets$NONF$Value
+  comm <- sets$COMM$Value
+  hfood <- setdiff(comm, nonfoodset)
+  primagri <- sets$PRAG$Value
+  procsevfood <- setdiff(hfood, primagri)
+
+  gvc_food <- gvcdata %>% subset(COMM %in% primagri & COMM_2 %in% procsevfood | (COMM == COMM_2 & COMM %in% primagri)) %>%
+    subset(FDEM == "phh") %>% select(-FDEM) %>%
+    group_by(COMM,REG) %>% mutate(Value = Q2FD/sum(Q2FD)) %>% ungroup()
+
+  return(gvc_food)
 }
 
 
