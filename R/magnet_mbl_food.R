@@ -232,7 +232,8 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 
 }
 
-MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA){
+MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3){
+  #1E-3 threshold of final flows by default. Tested this quite a bit and the resulting PEFO is only 0.001% of or so, but it's a lot quicker
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief_food")
@@ -278,7 +279,8 @@ MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA){
     left_join(comregmap) %>%
     left_join(comregmap2) %>%
     select(-COMREG, -COMREG_2) %>%
-    rename(Value = value)
+    rename(Value = value) %>%
+    subset(Value > 0)
 
   # Production required for final demand by agent  ---------------------------------
 
@@ -296,7 +298,8 @@ MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA){
   MBL_s_Fall_q <- bind_rows(
                   mutate(MBL_s_FP_q,f="phh"),
                   mutate(MBL_s_FG_q,f="gvt"),
-                  mutate(MBL_s_FI_q,f="inv"))
+                  mutate(MBL_s_FI_q,f="inv")) %>%
+    subset(Value > threshold)
 
   for (reg in REG$Value) {
     print(paste("adding MBL_Q2FD output for region", reg))
@@ -321,7 +324,7 @@ MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA){
              REG_3 = d,
              Value) %>%
 
-      subset(Value > 0)
+      subset(Value > threshold)
 
     MBL_Q2FD <- bind_rows(MBL_Q2FD, MBL_Q2FDpart)
   }
