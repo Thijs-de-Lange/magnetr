@@ -913,7 +913,7 @@ MBL_InvertLeontief <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 
 }
 
-MBL_ProductionShares <- function(GTAPSETS, GTAPDATA){
+MBL_ProductionShares <- function(GTAPSETS, GTAPDATA,threshold = 1E-6){
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief")
@@ -959,7 +959,8 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA){
     left_join(comregmap) %>%
     left_join(comregmap2) %>%
     select(-COMREG, -COMREG_2) %>%
-    rename(Value = value)
+    rename(Value = value) %>%
+    subset(Value > 0)
 
   # Production required for final demand by agent  ---------------------------------
 
@@ -977,7 +978,8 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA){
   MBL_s_Fall_q <- bind_rows(
                   mutate(MBL_s_FP_q,f="phh"),
                   mutate(MBL_s_FG_q,f="gvt"),
-                  mutate(MBL_s_FI_q,f="inv"))
+                  mutate(MBL_s_FI_q,f="inv")) %>%
+    subset(Value > threshold)
 
   for (reg in REG$Value) {
     print(paste("adding MBL_Q2FD output for region", reg))
@@ -1002,7 +1004,7 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA){
              REG_3 = d,
              Value) %>%
 
-      subset(Value > 0)
+      subset(Value > threshold)
 
     MBL_Q2FD <- bind_rows(MBL_Q2FD, MBL_Q2FDpart)
   }
@@ -1113,7 +1115,7 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   # Load MBL_ProductionShares ----------------------------------------------------
   print("start routine MBL_ProductionShares")
-  ProductionShares <- MBL_ProductionShares(GTAPSETS, GTAPDATA)
+  ProductionShares <- MBL_ProductionShares(GTAPSETS, GTAPDATA, threshold = threshold)
   print("finished routine MBL_ProductionShares")
 
   MBL_COMM_SHR <- ProductionShares[[1]]
