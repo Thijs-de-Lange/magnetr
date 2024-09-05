@@ -365,8 +365,12 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
            REG = t,
            Value)
 
+  make_MBL_m_I_TRNS <- function(REG_t){
+
+    start.time <- Sys.time()
+
   #MBL_m_I_TRNS(m,t,c,d) # Int'l transport margins from s for intermediate use by c in d (mil. USD) #;
-  MBL_m_I_TRNS <- MBL_COMM_SHR %>%
+  MBL_m_I_TRNS_t <- MBL_COMM_SHR %>%
     rename(c = COMM,
            i = COMM_2,
            a = ACTS,
@@ -410,6 +414,33 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
            REG = t,
            COMM = c,
            REG_2 = d)
+
+  MBL_m_I_TRNS_all <- data.frame(matrix(ncol=5,nrow=0, dimnames=list(NULL, c("m", "t", "c", "d", "Value"))))
+
+  MBL_m_I_TRNS_all <- rbind(MBL_m_I_TRNS_all, MBL_m_I_TRNS_t)
+
+
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+  print(time.taken)
+
+  return(MBL_m_I_TRNS_all)
+
+  }
+
+
+  REG_t_list <- MBL_SHR_TRANSS %>%
+    rename(m = MARG,
+           t = REG,
+           SHR_TRANSS = Value) %>%
+    select(t) %>%
+    unique() %>%
+    .$t
+
+  tic()
+  MBL_m_I_TRNS <- map_df(REG_t_list, make_MBL_m_I_TRNS)
+  toc()
+
 
 #MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
   MBL_m_FP_TRS <-  MBL_m_FINP_q %>%
