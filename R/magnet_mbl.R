@@ -406,7 +406,8 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
     left_join(., MBL_SHR_TRANSS %>%
                 rename(m = MARG,
                        t = REG,
-                       SHR_TRANSS = Value)
+                       SHR_TRANSS = Value) %>%
+                filter(t == REG_t)
     ) %>%
     mutate(Value = SHR_TRANSS * Value * TRANSD_q) %>%
     group_by(m,t,c,d) %>%
