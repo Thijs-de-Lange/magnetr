@@ -365,6 +365,8 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
            REG = t,
            Value)
 
+  # Loop over REG t to make MBL_m_I_TRNS
+  # Otherwise too large data frame is created when MBL_COMM_SHR and MBL_m_INT_q are merged with left_join()
   make_MBL_m_I_TRNS <- function(REG_t){
 
     start.time <- Sys.time()
