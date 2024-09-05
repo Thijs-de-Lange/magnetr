@@ -25,7 +25,8 @@ Imports:
     tidyr,
     utils,
     reshape2,
-    readxl
+    readxl,
+    tictoc
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
 VignetteBuilder: knitr
