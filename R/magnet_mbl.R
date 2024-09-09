@@ -440,9 +440,9 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
     unique() %>%
     .$t
 
-  tic()
+  tictoc::tic()
   MBL_m_I_TRNS <- map_df(REG_t_list, make_MBL_m_I_TRNS)
-  toc()
+  tictoc::toc()
 
 
 #MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
