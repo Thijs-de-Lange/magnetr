@@ -418,7 +418,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
            COMM = c,
            REG_2 = d)
 
-  MBL_m_I_TRNS_all <- data.frame(matrix(ncol=5,nrow=0, dimnames=list(NULL, c("m", "t", "c", "d", "Value"))))
+  MBL_m_I_TRNS_all <- data.frame(matrix(ncol=5,nrow=0, dimnames=list(NULL, c("MARG", "REG", "COMM", "REG_2", "Value"))))
 
   MBL_m_I_TRNS_all <- rbind(MBL_m_I_TRNS_all, MBL_m_I_TRNS_t)
 
