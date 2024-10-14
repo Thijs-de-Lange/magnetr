@@ -168,7 +168,7 @@ magnet_get_scenarioinfo <- function(maindir) {
     return(paste(answertxt$Periods, collapse = ";"))
   }
 
-  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
+  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
 
   scen$files <- rownames(scen)
@@ -197,7 +197,7 @@ magnet_get_scenarioinfo_long <- function(maindir) {
   # Creates a dataframe, long list, with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
 
-  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
+  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
 
   scen$files <- rownames(scen)
@@ -368,11 +368,11 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   # Reads all files in a scenario for a given scenario name.
   # Produce a list of lists: on list with Update, Updatview, update_tax, and solution headers.
 
-  updateviewfiles <- list.files(file.path(maindir,"4_MAGNET","Updates"), recursive = TRUE,
+  updateviewfiles <- list.files(file.path(maindir,"4_MAGNET","Updates"),
                                 pattern = paste("^",scenname,"_\\d{4}-\\d{4}_update_view.har$",sep=""), full.names = TRUE, ignore.case = TRUE)
   updatefiles <- gsub("_view", "", updateviewfiles)
   updatetaxfiles <- gsub("_view", "_tax", updateviewfiles)
-  solfiles <- list.files(file.path(maindir,"4_MAGNET","Solutions"), recursive = TRUE,
+  solfiles <- list.files(file.path(maindir,"4_MAGNET","Solutions"),
                          pattern = paste("^",scenname,"_\\d{4}-\\d{4}_Solution.sol$",sep=""), full.names = TRUE, ignore.case = TRUE)
 
   df_update <- list()
@@ -408,6 +408,9 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   df_solution <- list()
   for (f in solfiles) {
     #for soluation file we always keep all years
+    year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
+    if(!is.null(years_sel)){if(year > max(years_sel)){next}}
+
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){

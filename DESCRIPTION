@@ -26,6 +26,7 @@ Imports:
     utils,
     reshape2,
     readxl,
+    purrr,
     tictoc
 Remotes: 
     github::USDA-ERS/MTED-HARr@HEAD
