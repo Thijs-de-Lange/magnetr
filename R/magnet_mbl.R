@@ -431,7 +431,6 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
 
   }
 
-
   REG_t_list <- MBL_SHR_TRANSS %>%
     rename(m = MARG,
            t = REG,
@@ -1115,7 +1114,7 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA,threshold = 1E-6){
 
 }
 
-MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
+MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6, ProductionShares = NULL){
 
   # Standard GTAP sets ----------------------------------------------------------
 
@@ -1149,7 +1148,9 @@ MBL_Footprints <- function(GTAPSETS, ACTDAT, GTAPDATA, threshold = 1E-6){
 
   # Load MBL_ProductionShares ----------------------------------------------------
   print("start routine MBL_ProductionShares")
-  ProductionShares <- MBL_ProductionShares(GTAPSETS, GTAPDATA, threshold = threshold)
+  if(is.null(ProductionShares)){ # means production shares are provided
+    ProductionShares <- MBL_ProductionShares(GTAPSETS, GTAPDATA, threshold = threshold)
+  }
   print("finished routine MBL_ProductionShares")
 
   MBL_COMM_SHR <- ProductionShares[[1]]
@@ -1315,8 +1316,6 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
 
   COMM2ACTS <- cbind(rename(GTAPSETS$MC2S,ACTS = Value), rename(GTAPSETS$COMM, COMM = Value))
 
-
-
   #Initiating footprints data with quantity production, converting to 1000 ton
   A_FP <- GTAPDATA$PROD %>% mutate(FPRNT_A = "Quantity",
                             Value = Value/1000) %>% select(FPRNT_A,ACTS,REG,Value)
@@ -1361,6 +1360,17 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
   } else if("fert" %in% GTAPDATA$FDEM$COMM) {
     fert <- subset(GTAPDATA$FDEM, COMM == "fert") %>% select(-COMM) %>% mutate(FPRNT_A = "Fert")
     A_FP <- bind_rows(A_FP, fert)
+  }
+
+  if("NMDM" %in% names(GTAPDATA)){
+    nmdm <- subset(GTAPDATA$NMDM, Value > 0) %>%
+      mutate(FPRNT_A = paste("N_Manure",as.character(COMM),sep = "_")) %>% select(-COMM)
+    A_FP <- bind_rows(A_FP, nmdm)
+  }
+  if("PMDM" %in% names(GTAPDATA)){
+    nmdm <- subset(GTAPDATA$NMDM, Value > 0) %>%
+      mutate(FPRNT_A = paste("P_Manure",as.character(COMM),sep = "_")) %>% select(-COMM)
+    A_FP <- bind_rows(A_FP, nmdm)
   }
 
   if("WTVL" %in% names(GTAPDATA)){
