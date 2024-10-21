@@ -1366,11 +1366,23 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
     nmdm <- subset(GTAPDATA$NMDM, Value > 0) %>%
       mutate(FPRNT_A = paste("N_Manure",as.character(COMM),sep = "_")) %>% select(-COMM)
     A_FP <- bind_rows(A_FP, nmdm)
+    if("fert_n" %in% GTAPDATA$FDEM$COMM) {
+      #This makes a header with synthetic + manure fertilzier
+      fert_n_tot <- bind_rows(fert_n,nmdm) %>% mutate(FPRNT_A = "FertTot_N") %>%
+        group_by(across(-Value)) %>% summarize(Value = sum(Value)) %>% ungroup()
+      A_FP <- bind_rows(A_FP, fert_n_tot)
+    }
   }
   if("PMDM" %in% names(GTAPDATA)){
-    nmdm <- subset(GTAPDATA$NMDM, Value > 0) %>%
+    pmdm <- subset(GTAPDATA$PMDM, Value > 0) %>%
       mutate(FPRNT_A = paste("P_Manure",as.character(COMM),sep = "_")) %>% select(-COMM)
-    A_FP <- bind_rows(A_FP, nmdm)
+    A_FP <- bind_rows(A_FP, pmdm)
+    if("fert_p" %in% GTAPDATA$FDEM$COMM) {
+      #This makes a header with synthetic + manure fertilizer
+      fert_p_tot <- bind_rows(fert_p,pmdm) %>% mutate(FPRNT_A = "FertTot_P") %>%
+        group_by(across(-Value)) %>% summarize(Value = sum(Value)) %>% ungroup()
+      A_FP <- bind_rows(A_FP, fert_p_tot)
+    }
   }
 
   if("WTVL" %in% names(GTAPDATA)){
