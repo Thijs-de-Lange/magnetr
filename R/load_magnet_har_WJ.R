@@ -168,7 +168,7 @@ magnet_get_scenarioinfo <- function(maindir) {
     return(paste(answertxt$Periods, collapse = ";"))
   }
 
-  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), pattern = "GTAPLog.*\\.log", full.names = TRUE))
+  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"),recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
 
   scen$files <- rownames(scen)
