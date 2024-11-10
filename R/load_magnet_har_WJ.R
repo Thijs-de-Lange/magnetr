@@ -197,7 +197,7 @@ magnet_get_scenarioinfo_long <- function(maindir) {
   # Creates a dataframe, long list, with usefull info of all scenarios with a log file present.
   # Used as basis for other read functions
 
-  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), pattern = "GTAPLog.*\\.log", full.names = TRUE))
+  scen <- file.info(list.files(file.path(maindir,"4_MAGNET","Scenarios"), recursive = TRUE, pattern = "GTAPLog.*\\.log", full.names = TRUE))
   scen = scen[with(scen, order(as.POSIXct(mtime), decreasing = TRUE)),]
 
   scen$files <- rownames(scen)
@@ -382,9 +382,12 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update[[n]] <- bind_rows(df_update[[n]], dftmp[[n]])
+      df_update[[n]][[year]] <- dftmp[[n]]
     }
+    rm(dftmp)
   }
+  df_update <- lapply(df_update, bind_rows)
+
   df_update_view <- list()
   for (f in updateviewfiles) {
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
@@ -392,9 +395,12 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update_view[[n]] <- bind_rows(df_update_view[[n]], dftmp[[n]])
+      df_update_view[[n]][[year]] <-dftmp[[n]]
     }
+    rm(dftmp)
   }
+  df_update_view <- lapply(df_update_view, bind_rows)
+
   df_update_tax <- list()
   for (f in updatetaxfiles) {
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
@@ -402,21 +408,25 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_update_tax[[n]] <- bind_rows(df_update_tax[[n]], dftmp[[n]])
+      df_update_tax[[n]][[year]] <- dftmp[[n]]
     }
+    rm(dftmp)
   }
+  df_update_tax <- lapply(df_update_tax, bind_rows)
+
   df_solution <- list()
   for (f in solfiles) {
     #for soluation file we always keep all years
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(year > max(years_sel)){next}}
-
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
-      df_solution[[n]] <- bind_rows(df_solution[[n]], dftmp[[n]])
+      df_solution[[n]][[year]] <- dftmp[[n]]
     }
+    rm(dftmp)
   }
+  df_solution <- lapply(df_solution, bind_rows)
 
   df_gvc <- list()
   if(addgvcinfo){
@@ -426,10 +436,12 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
       dftmp <- readscenariofile_gvc(f,year=year,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
       for (n in names(dftmp)){
-        df_gvc[[n]] <- bind_rows(df_gvc[[n]], dftmp[[n]])
+        df_gvc[[n]][[year]] <- dftmp[[n]]
       }
+      rm(dftmp)
     }
   }
+  df_gvc <- lapply(df_gvc, bind_rows)
 
   df_scendata <- list(Update = df_update, Update_view = df_update_view,
                       Update_tax = df_update_tax, Solution = df_solution, GVC = df_gvc)
@@ -488,7 +500,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
 
-  sets <- magnet_read_all_headers(sceninfo$Sets)
+  sets <- suppressWarnings(magnet_read_all_headers(sceninfo$Sets))
 
   df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = recursive,
                               readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold)
@@ -501,6 +513,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
 
   df_scendata$Solution_index <- list()
   for (h in names(df_scendata$Solution)) {
+    print(h)
     df_scendata$Solution_index[[h]] <- makesolindex(df_scendata$Solution[[h]],as.character(baseyear))
   }
 
@@ -524,7 +537,7 @@ makesolindex <- function(df, fy) {
       for (p in 2:length(years)){ # probably smarter ways to do this, but seems to work!
         df[[years[p]]] <- df[[years[p-1]]] * (1+df[[years[p]]]/100)
       }
-      gather(df, Year, Value, all_of(years))
+      df <- gather(df, Year, Value, all_of(years))
     },
     error=function(cond) {
       message("Error making index of sol variable, something must be wrong")
