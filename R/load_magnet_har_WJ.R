@@ -379,6 +379,8 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   solfiles <- list.files(file.path(maindir,"4_MAGNET","Solutions"),
                          pattern = paste("^",scenname,"_\\d{4}-\\d{4}_Solution.sol$",sep=""), full.names = TRUE, ignore.case = TRUE)
 
+  if(!is.null(whitelist)){whitelist = c(whitelist,"YEAR")}
+
   df_update <- list()
   yearlist <- data.frame()
   for (f in updatefiles) {
@@ -431,6 +433,9 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(year > max(years_sel)){next}}
     yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
+    # In solution need to add this step, because intermediate years may be skipped for update reading, but not here, so things can be missing in the yearlist.
+    # also means this won't catch all weird year setups, but I try.
+    if(length(yearfromfile)==0){yearfromfile = year}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef, year = yearfromfile)
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
@@ -463,7 +468,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
 
 readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
                          recursive = FALSE, overwrite_scenname = FALSE, readcoef = TRUE,
-                         addgvcinfo = FALSE, sets = NULL, threshold = threshold){
+                         addgvcinfo = FALSE, sets = NULL, threshold = threshold, years_sel = years_sel){
   #Reads basedata.
   # Uses the scenario info which can possible have a normal run as input, so it tries to read solution file if it is ther
   # Recursively then will also read the original basedata. I think it works ;).
@@ -493,7 +498,8 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
   df_basedata <- list(Update = BaseData_b, Update_view = BaseData_b_view,
                       Update_tax = BaseData_b_tax, Solution = BaseData_b_solution)
 
-  if(addgvcinfo){
+  if(addgvcinfo & year %in% years_sel){
+    # The other things want to keep for likely but skip this if base year is not selected
     df_basedata$GVC <- readscenariofile_gvc(sceninfo$BaseData_b, year = year, scenname = scenname, sets = sets, threshold = threshold)
   }
 
@@ -516,7 +522,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   sets <- suppressWarnings(magnet_read_all_headers(sceninfo$Sets))
 
   df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = recursive,
-                              readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold)
+                              readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold, years_sel = years_sel)
   NCMF = df_basedata$GVC$NCMF
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
                               addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold, years_sel = years_sel)
