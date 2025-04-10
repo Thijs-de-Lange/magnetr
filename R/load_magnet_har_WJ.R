@@ -387,9 +387,9 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef)
+    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     yearfromfile <- as.character(as.integer(dftmp$YEAR$Value))
     yearlist <- bind_rows(yearlist,data.frame(Year = year,Yearfromfile=yearfromfile))
-    if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update[[n]][[yearfromfile]] <- dftmp[[n]]
     }
@@ -402,9 +402,9 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   for (f in updateviewfiles) {
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
+    if(!(year %in% yearlist$Year)){next} # this means this year is not found in the update files, so we skip it.
     yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef, year = yearfromfile)
-
     if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
     for (n in names(dftmp)){
       df_update_view[[n]][[yearfromfile]] <-dftmp[[n]]
@@ -417,6 +417,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
   for (f in updatetaxfiles) {
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
+    if(!(year %in% yearlist$Year)){next} # this means this year is not found in the update files, so we skip it.
     yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
     dftmp <- readscenariofile(f,scenname,whitelist,readcoef, year = yearfromfile)
     if(is.null(dftmp) | length(dftmp) == 0){break} # This happens quite often so surpressing warning.
@@ -432,6 +433,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     #for soluation file we always keep all years
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(year > max(years_sel)){next}}
+    if(!(year %in% yearlist$Year)){next} # this means this year is not found in the update files, so we skip it.
     yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
     # In solution need to add this step, because intermediate years may be skipped for update reading, but not here, so things can be missing in the yearlist.
     # also means this won't catch all weird year setups, but I try.
@@ -450,6 +452,7 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     for (f in updatefiles) {
       year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
       if(!is.null(years_sel)){if(!(year %in% years_sel)){next}}
+      if(!(year %in% yearlist$Year)){next} # this means this year is not found in the update files, so we skip it.
       yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
       dftmp <- readscenariofile_gvc(f,year=yearfromfile,scenname=scenname,sets,NCMF,threshold = threshold)
       if(is.null(dftmp) | length(dftmp) == 0){warning(paste(f,"has no data, stopping reading scenario"));break}
