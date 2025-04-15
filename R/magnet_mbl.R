@@ -887,7 +887,7 @@ MBL_InvertLeontief <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
   )
 
   # converse converted to 'long' format'
-  MBL_L_long_comreg <- melt(MBL_L) %>%
+  MBL_L_long_comreg <- reshape2::melt(MBL_L) %>%
     rename(Value = value)
 
   rownames(MBL_I_IO) <- comreg
@@ -931,7 +931,7 @@ MBL_InvertLeontief <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
              CHK_INV = Value) %>%
       left_join(.,
                 MBL_IM %>%
-                  melt() %>%
+                  reshape2::melt() %>%
                   rename(i = Var1,
                          k = Var2,
                          L = value)) %>%
@@ -988,7 +988,7 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA,threshold = 1E-6){
   # Split combined indices in Leontief invers
   #MBL_LI(i,s,c,d) # Quantity-based Leontief inverse  i from s in final demand c in d #;
   MBL_LI <- MBL_L %>%
-    melt(.) %>%
+    reshape2::melt(.) %>%
     left_join(comregmap) %>%
     left_join(comregmap2) %>%
     select(-COMREG, -COMREG_2) %>%
@@ -1108,6 +1108,11 @@ MBL_ProductionShares <- function(GTAPSETS, GTAPDATA,threshold = 1E-6){
            REG_3 = d,
            Value, Q2FD)
 
+  # This time without the threshold to keep all here is needed.
+  MBL_s_Fall_q <- bind_rows(
+    mutate(MBL_s_FP_q,f="phh"),
+    mutate(MBL_s_FG_q,f="gvt"),
+    mutate(MBL_s_FI_q,f="inv"))
   MBL_s_Fall_q <- rename(MBL_s_Fall_q, FDEM = f)
 
   return(list(MBL_COMM_SHR, MBL_FD_shr,MBL_s_IO_q, MBL_s_Fall_q,MBL_Q_q))
@@ -1325,9 +1330,10 @@ MBL_MakeACTDAT <- function(GTAPSETS, GTAPDATA) {
           summarize(Value = sum(Value)/1000) %>% ungroup() %>%
           mutate(FPRNT_A = "Land")
   A_FP <- bind_rows(A_FP, ldem)
-  pasture <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$LVST$Value,Value,0)) %>% mutate(FPRNT_A = "Pasture")
+  pasture <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$ANI2$Value,Value,0)) %>%
+    mutate(FPRNT_A = "Pasture")
   A_FP <- bind_rows(A_FP, pasture)
-  cropland <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$LVST$Value,0,Value)) %>% mutate(FPRNT_A = "Cropland")
+  cropland <- ldem %>% mutate(Value = ifelse(ACTS %in% GTAPSETS$ANI2$Value | ACTS %in% GTAPSETS$FORE$Value | ACTS == "plan",0,Value)) %>% mutate(FPRNT_A = "Cropland")
   A_FP <- bind_rows(A_FP, cropland)
 
   qlab <- GTAPDATA$QLAB  %>% group_by(ACTS,REG) %>%
