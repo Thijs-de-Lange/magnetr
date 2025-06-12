@@ -439,7 +439,6 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
     #for soluation file we always keep all years
     year <- unlist(str_split(str_extract(f,"\\d{4}-\\d{4}"), "-"))[2]
     if(!is.null(years_sel)){if(year > max(years_sel)){next}}
-    if(!(year %in% yearlist$Year)){next} # this means this year is not found in the update files, so we skip it.
     yearfromfile <- subset(yearlist, Year == year)$Yearfromfile
     # In solution need to add this step, because intermediate years may be skipped for update reading, but not here, so things can be missing in the yearlist.
     # also means this won't catch all weird year setups, but I try.
@@ -478,12 +477,9 @@ readscenario <- function(scenname, maindir, whitelist = c(), readcoef = TRUE, ad
 }
 
 readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
-                         recursive = FALSE, overwrite_scenname = FALSE, readcoef = TRUE,
+                        overwrite_scenname = FALSE, readcoef = TRUE,
                          addgvcinfo = FALSE, sets = NULL, threshold = threshold, years_sel = years_sel){
   #Reads basedata.
-  # Uses the scenario info which can possible have a normal run as input, so it tries to read solution file if it is ther
-  # Recursively then will also read the original basedata. I think it works ;).
-
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   # need the year data if it's not in the whitelist
   if(!is.null(whitelist)){whitelist = c(whitelist,"YEAR")}
@@ -501,13 +497,6 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
   BaseData_b_view <- addyearandscen(BaseData_b_view, year, scenname)
   BaseData_b_tax <- addyearandscen(BaseData_b_tax, year, scenname)
 
-  # if(sceninfo$BaseData_b_solution != ""){
-  #   print("reading baesdata solution")
-  #   print(sceninfo$BaseData_b_solution)
-  #   BaseData_b_solution <- magnet_read_all_headers(sceninfo$BaseData_b_solution, whitelist = whitelist,useCoefficientsAsNames = readcoef)
-  #   BaseData_b_solution <- addyearandscen(BaseData_b_solution, year, scenname)
-  # } else {BaseData_b_solution <- NULL}
-
   df_basedata <- list(Update = BaseData_b, Update_view = BaseData_b_view,
                       Update_tax = BaseData_b_tax) #, Solution = BaseData_b_solution)
 
@@ -520,21 +509,20 @@ readbasedata <- function(scenname, scenariosinfo, whitelist = c(),
 }
 
 #' @export
-readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = FALSE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 1E-6, years_sel = NULL){
+readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recursive = TRUE, readcoef = TRUE, addgvcinfo = FALSE, threshold = 1E-6, years_sel = NULL){
 
   sceninfo = subset(scenariosinfo, tolower(Scenario) == tolower(scenname))
   maindir <- sceninfo$Maindir
 
   sets <- suppressWarnings(magnet_read_all_headers(sceninfo$Sets))
 
-  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist, recursive = recursive,
+  df_basedata <- readbasedata(scenname, scenariosinfo, whitelist = whitelist,
                               readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold, years_sel = years_sel)
   NCMF = df_basedata$GVC$NCMF
   df_scendata <- readscenario(scenname, maindir, whitelist = whitelist, readcoef = readcoef,
                               addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold, years_sel = years_sel)
 
-
-  if(grepl("_update.har$",sceninfo$BaseData_b)){
+  if(grepl("_update.har$",sceninfo$BaseData_b) & recursive == TRUE){
     # If it is an update file, we need to read the basedata from the original scenario.
     base_run <- gsub("_\\d{4}-\\d{4}_update.har$","", split_path(sceninfo$BaseData_b)[1])
     print(paste0("reading basedate from scenario ", base_run))
@@ -543,7 +531,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
                                        years_sel = years_sel,
                                        stopatyear = df_basedata$Update$YEAR$Value,
                                        overwrite_scenname = scenname)
-    df_basedata <- readbasedata(base_run, scenariosinfo, whitelist = whitelist, recursive = recursive,
+    df_basedata <- readbasedata(base_run, scenariosinfo, whitelist = whitelist,
                                 readcoef = readcoef, addgvcinfo = addgvcinfo, sets = sets, threshold = threshold, years_sel = years_sel,
                                 overwrite_scenname = scenname)
 
