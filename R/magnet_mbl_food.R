@@ -255,8 +255,14 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE, feedo
 
 }
 
-MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3, feedopt = FALSE){
+MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3, feedopt = FALSE, aggregate = TRUE, aggregate_more = TRUE){
   #1E-3 threshold of final flows by default. Tested this quite a bit and the resulting PEFO is only 0.001% of or so, but it's a lot quicker
+
+  if(aggregate){
+    mappingcomm <- makefoodfocusmapping(GTAPSETS, more = aggregate_more)
+    GTAPDATA <- makefoodfocusaggbdata(GTAPDATA, mappingcomm)
+    GTAPSETS <- makefoodfocusaggsets(GTAPSETS, mappingcomm)
+  }
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief_food")
@@ -424,7 +430,13 @@ MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3, feedo
 
 }
 
-MBL_make_food_gvc <- function(gvcdata, sets){
+MBL_make_food_gvc <- function(gvcdata, sets, aggregate = TRUE, aggregate_more = TRUE){
+
+  if(aggregate){
+    mappingcomm <- makefoodfocusmapping(sets, more = aggregate_more)
+    sets <- makefoodfocusaggsets(sets, mappingcomm)
+  }
+
   #typical way to subset the gvcdata for food analysies, ignores all nonfood flows, and focuses on primary --> processed flows into households only.
   nonfoodset <- sets$NONF$Value
   comm <- sets$COMM$Value
@@ -445,6 +457,7 @@ MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
   MBL_FD_shr <- gvcfood
 
   NVOM <- bdata$NVOM
+  if(is.null(NVOM)){NVOM <- bdata$NVOB} # Basedata got rename recently, so NVOM is now NVOB
 
   if("PRIM_AGRI" %in% colnames(NCMF)){NCMF <-
     rename(NCMF, COMM = PRIM_AGRI)}
@@ -459,10 +472,12 @@ MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
     rename(NVOMval = Value) %>%
     subset(NUTRIENTS0 != "lanU")
 
-
   population <- bdata$POP %>%
     rename(REG_3 = REG, POP = Value)
 
+  if("Value" %in% colnames(NCMF)){
+    NCMF <- NCMF %>% rename(NCMFVal = Value)
+  }
 
   gvcdata_nutrients <- MBL_FD_shr %>%
     rename(ProdShare = Value) %>%
@@ -478,7 +493,10 @@ MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
   return(gvcdata_nutrients)
 }
 
-MBL_make_nutrients_gvc_new <- function(gvcfood, bdata, finuflow){
+MBL_make_nutrients_gvc_ncpd <- function(gvcfood, bdata, ncpd){
+
+  # This function is used to calculate the nutrient flows for the PEFO calorie intake
+  # from the consumer intake side, no NVOM needed.
 
   MBL_FD_shr <- gvcfood
 
@@ -486,7 +504,7 @@ MBL_make_nutrients_gvc_new <- function(gvcfood, bdata, finuflow){
     rename(REG_3 = REG, POP = Value)
 
   gvcdata_nutrients <- MBL_FD_shr %>%
-    left_join(rename(finuflow, finflowval = Value)) %>%
+    left_join(rename(ncpd, finflowval = Value)) %>%
     mutate(VirtFlow = Q2FD * finflowval) %>%
     subset(VirtFlow > 0) %>%
     left_join(population) %>%
@@ -514,6 +532,124 @@ MBL_make_pefood <- function(gvcdata_nutrients){
   return(pefoodout)
 }
 
+makencmp <- function(MBL_FD_shr, bdata) {
+
+  # this only need for basedata, to calculate the NCMP for the PEFO calorie intake relative to NVOM
+
+  #taking intake values by default for PEFO
+  FINU <- bdata$FINU %>%
+    rename(REG_3 = REG, COMM = PRIM_AGRI, FINUval = Value) %>%
+    subset(NUTRIENTS != "lanU")
+
+  NVOM <- bdata$NVOM
+  if(is.null(NVOM)){NVOM <- bdata$NVOB} # Basedata got rename recently, so NVOM is now NVOB
+
+  NVOM <- NVOM %>%
+    rename(COMM = PRIM_AGRI, NVOMval = Value) %>%
+    subset(NUTRIENTS != "lanU")
+
+  ncmp <- MBL_FD_shr %>%
+    rename(ProdShare = Value) %>%
+    left_join(., NVOM) %>%
+    mutate(VirtualFlow = NVOMval * ProdShare) %>%
+    subset(VirtualFlow > 0) %>%
+    left_join(FINU) %>%
+    group_by(COMM, REG_3, NUTRIENTS) %>%
+    mutate(FINU_LI = sum(VirtualFlow)) %>%
+    ungroup() %>%
+    mutate(NCMFVal = FINU_LI/FINUval) %>%
+    select(COMM,REG_3,NUTRIENTS0 = NUTRIENTS,Value = NCMFVal) %>% unique()  %>%
+    mutate(Value = ifelse(is.infinite(Value), 1, Value))
+  attr(ncmp, 'description') <- "The NCMF for the PEFO calorie intake (REG_3) from springmann EL data"
+
+  return(ncmp)
+
+}
+
+makencpd <- function(MBL_FD_shr, bdata) {
+  # this only need for basedata, to calculate the FINU flow for the PEFO calorie intake
+  # this is calculated from the consumer intake side, no NVOM needed.
+
+  FINU <- bdata$FINU %>%
+    rename(REG_3 = REG, COMM = PRIM_AGRI, FINUval = Value) %>%
+    subset(NUTRIENTS != "lanU")
+
+  ncpd <- MBL_FD_shr %>% select(-Value) %>%
+    group_by(COMM, REG_3) %>%
+    mutate(ConsShare = Q2FD/sum(Q2FD)) %>%
+    ungroup() %>%
+    left_join(FINU) %>%
+    mutate(VirtualFlow = FINUval * ConsShare) %>%
+    subset(VirtualFlow > 0)  %>%
+    group_by(COMM, REG_3, NUTRIENTS) %>%
+    mutate(FINU_LI = sum(VirtualFlow)) %>%
+    ungroup() %>%
+    mutate(VflowperUSD = VirtualFlow/Q2FD) %>%
+    mutate(test = VflowperUSD * Q2FD) %>%
+    group_by(COMM, REG_3, NUTRIENTS) %>%
+    mutate(test = sum(test))  %>%
+    ungroup() %>%
+    select(COMM,REG_3,NUTRIENTS0 = NUTRIENTS,Value = VflowperUSD) %>%
+    mutate(Value = ifelse(is.infinite(Value), 0, Value))  %>%
+    group_by(COMM,REG_3,NUTRIENTS0) %>%
+    summarize(Value = mean(Value)) %>%
+    ungroup()
+
+    return(ncpd)
+}
+
+makefoodfocusmapping <- function(sets, more = TRUE) {
+  # This function preparres a mapping aggregates the commodities in the bdata to a more manageable set of commodities
+  # more flag means more aggressive setting, with only HFOOD and 4 main aggregates left.
+
+  # Set HFOOD # Commodities consumed as food
+  hfood <- setdiff(sets$COMM$Value, sets$NONF$Value)
+ # foodfocusset <- unique(c(hfood,sets$FDIN$Value)) # adding, feed related items
+  foodfocusset <- hfood # adding, feed related items
+
+  if(more == FALSE){
+    # for more elaborate aggregation, we add all byproducts and residues
+    foodfocusset <- c(foodfocusset, sets$BYPR$Value)
+
+    foodfocusset <- unique(c(foodfocusset,sets$FDIN$Value)) # adding, feed related items
 
 
+    #also adding non food agri (wol, oagr) and forest things
+    foodfocusset <- c(foodfocusset, sets$FORE$Value, sets$AGRI$Value)
+  }
+
+  mappingcomm <- sets$COMM %>% rename(COMM = Value) %>%
+    mutate(Value = ifelse(COMM %in% foodfocusset,COMM,"")) %>%
+    #Marginal commodities need to be there for the footprint to work.
+    mutate(Value = ifelse(COMM %in% sets$MARG$Value,COMM,Value)) %>%
+    #Adding some typical aggregations only if not already in the above
+    mutate(Value = ifelse(Value == "" & COMM %in% sets$FDIN$Value,"Feed",Value)) %>%
+    mutate(Value = ifelse(Value == "" & COMM %in% sets$ESRC$Value,"Energy",Value)) %>%
+    mutate(Value = ifelse(Value == "" & COMM %in% sets$SERV$Value,"Services",Value)) %>%
+    mutate(Value = ifelse(Value == "" & COMM %in% sets$INDS$Value,"Industry",Value))
+
+  return(mappingcomm)
+}
+
+makefoodfocusaggbdata <- function(bdata, mappingcomm) {
+
+  for(n in names(bdata)){
+    bdata[[n]] <-  makeagg_singledf(bdata[[n]],mappingcomm)
+    bdata[[n]] <-  makeagg_singledf(bdata[[n]],rename(mappingcomm,COMM_2=COMM))
+    bdata[[n]] <-  makeagg_singledf(bdata[[n]],rename(mappingcomm,ACTS=COMM))
+  }
+  return(bdata)
+}
+
+makefoodfocusaggsets <- function(sets, mappingcomm) {
+  sets$COMM <- mappingcomm %>% select(-COMM) %>% unique()
+  newacts <-   sets$ACTS %>% rename(COMM = Value) %>% left_join(mappingcomm) %>% select(-COMM) %>% unique()
+  sets$ACTS <- newacts
+
+  #nonfoodset needed in pefo definiton so we adjust it here
+  newnonf <- sets$NONF %>% rename(COMM = Value) %>% left_join(mappingcomm) %>% select(-COMM) %>% unique()
+  sets$NONF <- newnonf
+
+  return(sets)
+}
 
