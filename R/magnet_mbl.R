@@ -176,12 +176,14 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
            REG = d,
            Value)
 
+
   # Fill Production -------------------------------------------------------------------------------
   # MBL_Q_q(i,s) # Quantity of production by commodity i and region s (mil USD)#;
   MBL_Q_q <-  MBL_PROD_q %>%
     group_by(COMM, REG) %>%
     summarize(Value = sum(Value)) %>%
     ungroup()
+
 
   #  Fill for non-margin demand --------------------------------------------------------------------
 
@@ -206,6 +208,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                                           d = REG,
                                           m_INT_q = Value)) %>%
                          mutate(V2 = COMM_SHR * m_INT_q) %>%
+                         mutate(V2 = ifelse(is.na(V2), 0, V2)) %>%
                          group_by(c, i, d) %>%
                          summarize(V2 = sum(V2)) %>%
                          ungroup()
@@ -232,6 +235,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                                  d = REG,
                                  d_INT_q = Value)) %>%
                 mutate(V2 = COMM_SHR * d_INT_q) %>%
+                mutate(V2 = ifelse(is.na(V2), 0, V2)) %>%
                 group_by(c, i, d) %>%
                 summarize(V2 = sum(V2)) %>%
                 ungroup()
@@ -261,6 +265,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        d = REG,
                        m_TOT_q = Value)) %>%
     mutate(Value = ifelse(m_TOT_q > 0,TRADE_q * m_FINP_q / m_TOT_q, 0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(i, s, d, Value)
   # domestic (allowing for self-trade)
   MBL_FP_q <- MBL_FP_q %>%
@@ -371,63 +376,66 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
 
     start.time <- Sys.time()
 
-  #MBL_m_I_TRNS(m,t,c,d) # Int'l transport margins from s for intermediate use by c in d (mil. USD) #;
-  MBL_m_I_TRNS_t <- MBL_COMM_SHR %>%
-    rename(c = COMM,
-           i = COMM_2,
-           a = ACTS,
-           d = REG,
-           COMM_SHR = Value) %>%
-    left_join(.,
-              MBL_m_INT_q %>%
-                rename(i = COMM,
-                       a = ACTS,
-                       d = REG,
-                       m_INT_q = Value)) %>%
-    # demand category share in total imports of commodity
-    mutate(Value = COMM_SHR * m_INT_q) %>%
-    group_by(c, i, d) %>%
-    summarize(Value = sum(Value)) %>%
-    ungroup() %>%
-    left_join(., MBL_m_TOT_q %>%
-                rename(i = COMM,
-                       d = REG,
-                       m_TOT_q = Value)) %>%
-    mutate(Value = ifelse(m_TOT_q > 0, Value / m_TOT_q, 0)) %>%
-    # international margins demanded for imports of commodity i from s #
-    left_join(.,
-              MBL_TRANSD_q %>%
-                rename(m = MARG,
-                       i = COMM,
-                       s = REG,
-                       d = REG_2,
-                       TRANSD_q = Value)) %>%
-    #regional share of transporter t in supply of margin m to global pool#
-    left_join(., MBL_SHR_TRANSS %>%
-                rename(m = MARG,
-                       t = REG,
-                       SHR_TRANSS = Value) %>%
-                filter(t == REG_t)
-    ) %>%
-    mutate(Value = SHR_TRANSS * Value * TRANSD_q) %>%
-    group_by(m,t,c,d) %>%
-    summarize(Value = sum(Value)) %>%
-    ungroup() %>%
-    rename(MARG = m,
-           REG = t,
-           COMM = c,
-           REG_2 = d)
+    #MBL_m_I_TRNS(m,t,c,d) # Int'l transport margins from s for intermediate use by c in d (mil. USD) #;
+    MBL_m_I_TRNS_t <- MBL_COMM_SHR %>%
+      rename(c = COMM,
+             i = COMM_2,
+             a = ACTS,
+             d = REG,
+             COMM_SHR = Value) %>%
+      left_join(.,
+                MBL_m_INT_q %>%
+                  rename(i = COMM,
+                         a = ACTS,
+                         d = REG,
+                         m_INT_q = Value)) %>%
+      # demand category share in total imports of commodity
+      mutate(Value = COMM_SHR * m_INT_q) %>%
+      mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
+      group_by(c, i, d) %>%
+      summarize(Value = sum(Value)) %>%
+      ungroup() %>%
+      left_join(., MBL_m_TOT_q %>%
+                  rename(i = COMM,
+                         d = REG,
+                         m_TOT_q = Value)) %>%
+      mutate(Value = ifelse(is.na(m_TOT_q), 0, m_TOT_q)) %>%
+      mutate(Value = ifelse(m_TOT_q > 0, Value / m_TOT_q, 0)) %>%
+      # international margins demanded for imports of commodity i from s #
+      left_join(.,
+                MBL_TRANSD_q %>%
+                  rename(m = MARG,
+                         i = COMM,
+                         s = REG,
+                         d = REG_2,
+                         TRANSD_q = Value)) %>%
+      #regional share of transporter t in supply of margin m to global pool#
+      left_join(., MBL_SHR_TRANSS %>%
+                  rename(m = MARG,
+                         t = REG,
+                         SHR_TRANSS = Value) %>%
+                  filter(t == REG_t)
+      ) %>%
+      mutate(Value = SHR_TRANSS * Value * TRANSD_q) %>%
+      mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
+      group_by(m,t,c,d) %>%
+      summarize(Value = sum(Value)) %>%
+      ungroup() %>%
+      rename(MARG = m,
+             REG = t,
+             COMM = c,
+             REG_2 = d)
 
-  MBL_m_I_TRNS_all <- data.frame(matrix(ncol=5,nrow=0, dimnames=list(NULL, c("MARG", "REG", "COMM", "REG_2", "Value"))))
+    MBL_m_I_TRNS_all <- data.frame(matrix(ncol=5,nrow=0, dimnames=list(NULL, c("MARG", "REG", "COMM", "REG_2", "Value"))))
 
-  MBL_m_I_TRNS_all <- rbind(MBL_m_I_TRNS_all, MBL_m_I_TRNS_t)
+    MBL_m_I_TRNS_all <- rbind(MBL_m_I_TRNS_all, MBL_m_I_TRNS_t)
 
 
-  end.time <- Sys.time()
-  time.taken <- end.time - start.time
-  print(time.taken)
+    end.time <- Sys.time()
+    time.taken <- end.time - start.time
+    print(time.taken)
 
-  return(MBL_m_I_TRNS_all)
+    return(MBL_m_I_TRNS_all)
 
   }
 
@@ -444,7 +452,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
   tictoc::toc()
 
 
-#MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
+  #MBL_m_FP_TRS(m,t,d) # Int'l transport margins from t for private hh imports in d (mil. USD) #;
   MBL_m_FP_TRS <-  MBL_m_FINP_q %>%
     rename(i = COMM,
            d = REG,
@@ -456,6 +464,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
     mutate(Value = ifelse(m_TOT_q > 0, m_FINP_q/m_TOT_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -471,6 +480,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        SHR_TRANSS = Value)
     ) %>%
     mutate(Value = SHR_TRANSS * Value *  TRANSD_q) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     group_by(m, t, d) %>%
     summarize(Value = sum(Value)) %>%
     ungroup() %>%
@@ -490,6 +500,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
     mutate(Value = ifelse(m_TOT_q > 0, m_FING_q/m_TOT_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -505,6 +516,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        SHR_TRANSS = Value)
     ) %>%
     mutate(Value = SHR_TRANSS * Value *  TRANSD_q) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     group_by(m, t, d) %>%
     summarize(Value = sum(Value)) %>%
     ungroup() %>%
@@ -524,6 +536,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        m_TOT_q = Value)) %>%
     #demand category share in total imports of commodity i#
     mutate(Value = ifelse(m_TOT_q > 0, m_FINI_q/m_TOT_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     # international margins demanded for imports of commodity i from s #
     left_join(.,
               MBL_TRANSD_q %>%
@@ -539,6 +552,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        SHR_TRANSS = Value)
     ) %>%
     mutate(Value = SHR_TRANSS * Value *  TRANSD_q) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     group_by(m, t, d) %>%
     summarize(Value = sum(Value)) %>%
     ungroup() %>%
@@ -564,6 +578,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        d = REG_2,
                        m_I_TRNS = Value)) %>%
     mutate(Value = ifelse(i %in% MARG$Value, I_q + m_I_TRNS, I_q)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -581,6 +596,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        d = REG_2,
                        m_FP_TRS = Value)) %>%
     mutate(Value = ifelse(i %in% MARG$Value, FP_q + m_FP_TRS, FP_q)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -598,6 +614,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        m_FG_TRS = Value)) %>%
     replace(is.na(.), 0) %>%
     mutate(Value = ifelse(i %in% MARG$Value, FG_q + m_FG_TRS, FG_q)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM= i,
            REG = s,
            REG_2 = d,
@@ -615,6 +632,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        m_FI_TRS = Value)) %>%
     replace(is.na(.), 0) %>%
     mutate(Value = ifelse(i %in% MARG$Value, FI_q + m_FI_TRS, FI_q)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -655,6 +673,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        FI_q = Value)
     ) %>%
     mutate(Value = I_q + FP_q + FG_q + FI_q) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     group_by(i, s) %>%
     summarize(Value = sum(Value)) %>%
     ungroup() %>%
@@ -677,6 +696,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        Q_q = Value)
     ) %>%
     mutate(Value = ifelse(Q_q > 0, 100 * (TOTDEM_q / Q_q - 1),0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            Value)
@@ -707,6 +727,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        I_q = Value)
     ) %>%
     mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * I_q, 0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            COMM_2 = c,
@@ -731,6 +752,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        FP_q = Value)
     ) %>%
     mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FP_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -754,6 +776,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        FG_q = Value)
     ) %>%
     mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FG_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,
@@ -777,6 +800,7 @@ MBL_ConstructBalances <-  function(GTAPSETS, GTAPDATA, MANUAL_CSHR = NULL) {
                        FI_q = Value)
     ) %>%
     mutate(Value = ifelse(TOTDEM_q > 0, (Q_q/TOTDEM_q) * FI_q,0)) %>%
+    mutate(Value = ifelse(is.na(Value), 0, Value)) %>%
     select(COMM = i,
            REG = s,
            REG_2 = d,

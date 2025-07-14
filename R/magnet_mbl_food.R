@@ -1,4 +1,4 @@
-MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
+MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE, feedopt = FALSE) {
 
   # EXTRA sets to trace food flows -------------------------------------------------
 
@@ -48,6 +48,29 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
            REG_2 = d,
            Value)
 
+  #Feed inputs
+  FDIN <- GTAPSETS$FDIN$Value
+  PRIMANI <- unique(c(GTAPSETS$LVST$Value,GTAPSETS$ANI2$Value,GTAPSETS$FISH$Value))
+
+  MBL_s_I_q_foodfeed <-  MBL_s_I_q %>%
+    rename(i = COMM,
+           s = REG,
+           c = COMM_2,
+           d = REG_2) %>%
+    # add to the above feed flows
+    mutate(Value = ifelse((i %in% PRIM_AGRI & !c %in% PFOOD) | !(i %in% FDIN & c %in% PRIMANI), 0, Value)) %>%
+    # remove all food related inputs in the activity primary agriculture;
+    # This leaves some other flows like feed in here, but the primary inputs of those have been removed in the step above. Removing more seems to crash the LI.
+    mutate(Value = ifelse(i %in% c(PRIM_AGRI, PFOOD) & c %in% PRIM_AGRI, 0, Value)) %>%
+    select(COMM = i,
+           REG = s,
+           COMM_2 = c,
+           REG_2 = d,
+           Value)
+
+
+  if(feedopt){MBL_s_I_q_food = MBL_s_I_q_foodfeed}
+
   # Derive production difference take sum of the use of i from region s;
   MBL_Q_q_diff <- MBL_s_I_q %>%
     rename(i = COMM,
@@ -55,7 +78,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
            c = COMM_2,
            d = REG_2,
            s_I_q_original = Value) %>%
-    left_join(.,              MBL_s_I_q_food %>%
+    left_join(., MBL_s_I_q_food %>%
                 rename(i = COMM,
                        s = REG,
                        c = COMM_2,
@@ -158,9 +181,9 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
   #MBL_I_IO(i,j) # Identity - IO matrix that needs to be inverted #;
   MBL_I_IO <- MBL_IM - MBL_IO
 
+  MBL_IO <- as.matrix(MBL_IO)
 
   # Variables & equation ----------------------------------------------------------------
-
   # MBL_L(j,k) # Inverse Leontief matrix #;
   MBL_L <- solve(MBL_I_IO)
   # Identical to Equation E_MBL_L in GEMPACK code
@@ -172,9 +195,9 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
     dimnames = list(COMREG = comreg, COMREG_2 = comreg)
   )
 
-  # converse converted to 'long' format'
-  MBL_L_long_comreg <- melt(MBL_L) %>%
-    rename(Value = value)
+  # converse converted to 'long' format', not used right now
+  # MBL_L_long_comreg <- reshape2::melt(MBL_L) %>%
+  #   rename(Value = value)
 
   rownames(MBL_I_IO) <- comreg
 
@@ -217,7 +240,7 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 #             CHK_INV = Value) %>%
 #      left_join(.,
 #                MBL_IM %>%
-#                  melt() %>%
+#                  reshape2::melt() %>%
 #                  rename(i = Var1,
 #                         k = Var2,
 #                         L = value)) %>%
@@ -232,12 +255,12 @@ MBL_InvertLeontief_food <- function(GTAPSETS, GTAPDATA, Check_inv = FALSE) {
 
 }
 
-MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3){
+MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3, feedopt = FALSE){
   #1E-3 threshold of final flows by default. Tested this quite a bit and the resulting PEFO is only 0.001% of or so, but it's a lot quicker
 
   # Load MBL_INvertLeontief
   print("start routine MBL_InvertLeontief_food")
-  InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, GTAPDATA)
+  InvertLeontief_food <- MBL_InvertLeontief_food(GTAPSETS, GTAPDATA, feedopt = FALSE)
   print("finished routine MBL_InvertLeontief_food")
 
   MBL_COMM_SHR <- InvertLeontief_food[[1]]
@@ -275,7 +298,7 @@ MBL_ProductionShares_food <- function(GTAPSETS, GTAPDATA,threshold = 1E-3){
   # Split combined indices in Leontief invers
   #MBL_LI(i,s,c,d) # Quantity-based Leontief inverse  i from s in final demand c in d #;
   MBL_LI <- MBL_L %>%
-    melt(.) %>%
+    reshape2::melt(.) %>% # Adding reshape2:: as calling as it will be depricate, still need better solution.
     left_join(comregmap) %>%
     left_join(comregmap2) %>%
     select(-COMREG, -COMREG_2) %>%
@@ -440,6 +463,7 @@ MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
   population <- bdata$POP %>%
     rename(REG_3 = REG, POP = Value)
 
+
   gvcdata_nutrients <- MBL_FD_shr %>%
     rename(ProdShare = Value) %>%
     left_join(NVOM) %>%
@@ -449,6 +473,25 @@ MBL_make_nutrients_gvc <- function(gvcfood, bdata, NCMF){
     left_join(population) %>%
     mutate(VirtFlowPerCapDay = VirtFlow / POP / 365) %>%
     select(-NVOMval, -ProdShare,-POP,-NCMFVal)
+
+
+  return(gvcdata_nutrients)
+}
+
+MBL_make_nutrients_gvc_new <- function(gvcfood, bdata, finuflow){
+
+  MBL_FD_shr <- gvcfood
+
+  population <- bdata$POP %>%
+    rename(REG_3 = REG, POP = Value)
+
+  gvcdata_nutrients <- MBL_FD_shr %>%
+    left_join(rename(finuflow, finflowval = Value)) %>%
+    mutate(VirtFlow = Q2FD * finflowval) %>%
+    subset(VirtFlow > 0) %>%
+    left_join(population) %>%
+    mutate(VirtFlowPerCapDay = VirtFlow / POP / 365) %>%
+    select(-Value,-POP,-finflowval)
 
   return(gvcdata_nutrients)
 }
