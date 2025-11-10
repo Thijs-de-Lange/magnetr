@@ -2,6 +2,7 @@
 % Please edit documentation in R/magnetr-package.R
 \docType{package}
 \name{magnetr}
+\alias{magnetr-package}
 \alias{magnetr}
 \title{magnetr: A package to load results from the global computable general equilibrium model 'MAGNET'}
 \description{
@@ -13,3 +14,15 @@ extract_MAGNET_d1()
 ....
 }
 
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/Thijs-de-Lange/magnetr}
+  \item Report bugs at \url{https://github.com/Thijs-de-Lange/magnetr/issues}
+}
+
+}
+\author{
+\strong{Maintainer}: Thijs de Lange \email{thijs.delange@wur.nl}
+
+}

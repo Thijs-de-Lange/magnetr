@@ -99,7 +99,7 @@ magnet_write_har <- function(dflist, outfilename) {
       }
 
       h <- substr(h,1,4)
-      print("warning, headers cannot be longer than 4 characters, shortening")
+      message("warning, headers cannot be longer than 4 characters, shortening")
 
 
     }
@@ -297,15 +297,15 @@ readscenariofile <- function(fullfilepath, scenname, whitelist = c(), readcoef =
 
   df <-  tryCatch(
     {
-      message(paste("Starting to read",scenname,"from", fullfilepath))
+      #message(paste("Starting to read",scenname,"from", fullfilepath))
       magnet_read_all_headers(fullfilepath, whitelist = whitelist,useCoefficientsAsNames = readcoef)
     },
     error=function(cond) {
-      message("Error reading HArr file, quiting loop over files")
+      message(paste("Error reading HAR file, quiting loop over files\n",fullfilepath))
       return(NULL)
     },
     finally={
-      message("read scenario succesfully")
+      #message("read scenario file succesfully")
     }
   )
 
@@ -326,7 +326,7 @@ readscenariofile_gvc <- function(fullfilepath, year, scenname, sets,NCMF = NULL,
 
   df <-  tryCatch(
     {
-      message(paste("Starting to read",scenname,"from", fullfilepath))
+      #message(paste("Starting to read",scenname,"from", fullfilepath))
       magnet_read_all_headers(fullfilepath,useCoefficientsAsNames = FALSE)
     },
     error=function(cond) {
@@ -525,7 +525,7 @@ readscenarioandbase <- function(scenname, scenariosinfo, whitelist = c(), recurs
   if(grepl("_update.har$",sceninfo$BaseData_b) & recursive == TRUE){
     # If it is an update file, we need to read the basedata from the original scenario.
     base_run <- gsub("_\\d{4}-\\d{4}_update.har$","", split_path(sceninfo$BaseData_b)[1])
-    print(paste0("reading basedate from scenario ", base_run))
+    # print(paste0("reading basedate from scenario ", base_run))
     df_basedata_deeper <- readscenario(base_run, maindir, whitelist = whitelist, readcoef = readcoef,
                                        addgvcinfo = addgvcinfo, NCMF = NCMF, sets = sets, threshold = threshold,
                                        years_sel = years_sel,
